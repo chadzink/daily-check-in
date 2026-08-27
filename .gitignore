@@ -1,0 +1,79 @@
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE & Editor Files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# Environment Variables & Credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credentials*.json
+service-account*.json
+firebase-adminsdk*.json
+
+# Go Build & Binary Artifacts
+bin/
+dist/
+server
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.prof
+
+# Node & Frontend (Vite / React)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-debug.log*
+frontend/dist/
+frontend/dist-ssr/
+frontend/node_modules/
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+.turbo/
+
+# Testing & Coverage
+coverage/
+coverage.out
+coverage.html
+.nyc_output/
+
+# Firebase & Local Emulators
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+auth-debug.log*
+pubsub-debug.log*
+database-debug.log*
+storage-debug.log*
+hosting-debug.log*
+.emulator_data/
+
+# Docker Local Overrides
+docker-compose.override.yml
