@@ -69,6 +69,7 @@ DailyCheckIn/
 │   ├── tailwind.config.js
 │   └── vite.config.ts
 ├── docs/
+│   ├── AGENTS.md                   # Multi-agent squad guide & collaboration workflows
 │   └── SPECIFICATION.md            # Detailed product & technical specification
 ├── docker-compose.yml              # Local Firebase Emulators
 ├── Dockerfile                      # Multi-stage production container build
