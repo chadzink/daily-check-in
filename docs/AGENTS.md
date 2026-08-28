@@ -99,47 +99,52 @@ flowchart TD
 
 ---
 
-## 3. End-to-End Collaboration Lifecycle
+## 3. End-to-End Collaboration Lifecycle & Scrum Workflows
 
-When a new feature or major refactor is requested, the squad collaborates through five distinct phases:
+The squad executes work across seven defined Scrum workflows. Detailed step-by-step procedures, matrices, and checklists are documented in [**`docs/WORKFLOWS.md`**](./WORKFLOWS.md) and individual runbooks in [**`.agents/workflows/`**](../.agents/workflows/) and [**`.agents/skills/`**](../.agents/skills/).
 
 ```text
-Phase 1: Inception & Scoping      [@product-owner]
-         - Reviews requirements against docs/SPECIFICATION.md
-         - Authors /plans/PLAN-<feature-name>.md with Gherkin acceptance criteria
+Workflow 1: Backlog Refinement & Story Scoping   [@product-owner, @ui-designer, @devops-engineer]
+            - Authors /plans/PLAN-<feature-name>.md with Gherkin acceptance criteria
+            - Enforces Definition of Ready (DoR)
 
-Phase 2: UI & Infrastructure Prep  [@ui-designer + @devops-engineer]
-         - @ui-designer specifies Tailwind tokens, component states, and UX flows
-         - @devops-engineer validates composite indexes and emulator health
+Workflow 2: Sprint & Milestone Kickoff           [Squad]
+            - Feature branch setup (feat/<milestone-or-feature>)
+            - Docker emulator suite health check (:8080, :9099, :4000)
 
-Phase 3: Implementation            [@developer]
-         - Implements Go backend layers and React frontend components
-         - Conducts self-verification (go test ./..., npm run build)
-         - Hands off to @tester with modified file summary
+Workflow 3: Feature Swarming & Implementation    [@developer + @ui-designer]
+            - Go Echo backend layers & React client state
+            - Pre-flight self-verification (go test ./..., npm run build)
 
-Phase 4: Verification & Testing   [@tester]
-         - Executes unit and integration test suites against emulator
-         - Runs /browser E2E verification for UI and responsive design
-         - If issues found: Loops back to @developer with reproduction steps
-         - If all AC pass: Saves report to test-reports/
+Workflow 4: Blocker Triage & Daily Standup       [Squad]
+            - Rapid impediment classification & escalation routing
 
-Phase 5: Sign-Off & Integration   [Squad Sign-Off]
-         - Verifies Definition of Done (DoD)
-         - Ready for merge to main branch
+Workflow 5: QA Verification & Acceptance Gate    [@tester]
+            - Automated emulator integration & /browser headless journeys
+            - Persistent test archival to test-reports/ & test-results/
+
+Workflow 6: Sprint Review & Sign-Off             [@product-owner, @tester, User]
+            - Verification against Definition of Done (DoD)
+            - Visual demo evidence & user sign-off
+
+Workflow 7: Sprint Retrospective & Continuous Imp. [Squad]
+            - Milestone retrospective, rule tuning, and skill codification
 ```
 
 ---
 
 ## 4. Standard Artifacts & Handoff Contracts
 
-| Phase | Artifact / Location | Owner | Consumer |
+| Phase / Ceremony | Artifact / Location | Owner | Consumer |
 | :--- | :--- | :--- | :--- |
-| **Specification** | `/plans/PLAN-<feature-name>.md` | `@product-owner` | `@developer`, `@tester`, `@ui-designer` |
+| **Specification (DoR)** | `/plans/PLAN-<feature-name>.md` | `@product-owner` | `@developer`, `@tester`, `@ui-designer` |
 | **Design Tokens** | `tailwind.config.js`, `frontend/src/index.css` | `@ui-designer` | `@developer` |
 | **Infrastructure** | `docker-compose.yml`, `firestore.indexes.json` | `@devops-engineer` | `@developer`, `@tester` |
+| **Workflow Runbooks** | `.agents/workflows/`, `.agents/skills/` | Squad | All Agents |
 | **Source Code** | `internal/...`, `frontend/src/...` | `@developer` | `@tester` |
-| **QA Report** | `test-reports/QA-REPORT-<feature>-<date>.md` | `@tester` | `@product-owner`, Team |
+| **QA Sign-Off Report** | `test-reports/QA-REPORT-<feature>-<date>.md` | `@tester` | `@product-owner`, Team |
 | **Test Logs & Media** | `test-results/screenshots/`, `test-results/*.log` | `@tester` | Team Audit |
+
 
 ---
 

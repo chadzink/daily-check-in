@@ -35,15 +35,20 @@ When building or updating features, agents in `.agents/agents/` collaborate in a
 | **`@devops-engineer`** | DevOps & Cloud Infrastructure | Firebase Emulators, `Dockerfile` multi-stage build, `firestore.indexes.json`, CI/CD |
 | **`@tester`** | QA & Test Automation Engineer | Unit, integration & `/browser` E2E validation with saved reports in `test-reports/` |
 
-### Collaboration Lifecycle
+### Collaboration Lifecycle & Scrum Workflows
+
+For detailed procedures and runbooks, see [docs/WORKFLOWS.md](docs/WORKFLOWS.md) and [.agents/workflows/](.agents/workflows/).
 
 ```text
-1. [@product-owner]    Scopes user stories & acceptance criteria in /plans/
-2. [@ui-designer]      Designs Tailwind tokens, component hierarchy & drag-and-drop UX
-3. [@devops-engineer]  Validates emulator setup, container build & composite indexes
-4. [@developer]        Implements full-stack code and executes local pre-flight checks
-5. [@tester]           Runs test suite & browser verification; saves report to test-reports/
+1. Backlog Refinement & Scoping    [@product-owner, @ui-designer, @devops-engineer] -> /plans/PLAN-*.md (DoR)
+2. Sprint / Milestone Kickoff      [Squad] -> Branch setup & emulator health check
+3. Feature Swarming & Dev          [@developer, @ui-designer] -> Clean code & pre-flight checks
+4. Blocker Triage & Daily Standup  [Squad] -> Escalation & impediment resolution
+5. QA Verification & Quality Gate  [@tester] -> Emulator & /browser validation; test-reports/
+6. Sprint Review & Sign-Off        [@product-owner, @tester, User] -> Definition of Done (DoD)
+7. Retrospective & Continuous Imp. [Squad] -> Refine rules, skills, and prompts
 ```
+
 
 ---
 
