@@ -86,7 +86,7 @@ When building or updating features, agents in `.agents/agents/` collaborate in a
 docker-compose up -d
 
 # Run Go Backend (configure emulator host variables)
-export FIRESTORE_EMULATOR_HOST="localhost:8080"
+export FIRESTORE_EMULATOR_HOST="localhost:8085"
 export FIREBASE_AUTH_EMULATOR_HOST="localhost:9099"
 go run ./cmd/server
 
