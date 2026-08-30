@@ -1,0 +1,14 @@
+
+> frontend@0.1.0 test
+> vitest run --run
+
+
+ RUN  v3.2.7 frontend
+
+ ✓ src/App.test.tsx (3 tests) 131ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  11:12:53
+   Duration  2.97s (transform 190ms, setup 96ms, collect 1.41s, tests 131ms, environment 388ms, prepare 114ms)
+

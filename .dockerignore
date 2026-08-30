@@ -1,0 +1,9 @@
+.git
+.agents
+plans
+test-reports
+test-results
+bin
+frontend/node_modules
+frontend/dist
+docker

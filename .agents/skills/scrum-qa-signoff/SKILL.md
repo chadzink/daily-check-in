@@ -38,9 +38,16 @@ If any Gherkin scenario fails:
 2. Link the error log or screenshot from `test-results/`.
 3. Route back to `@developer` with **Sign-Off Status: NEEDS WORK**.
 
-### 4. Archive QA Sign-Off Report
-When all acceptance criteria pass:
+### 4. Privacy & Path Hygiene Pre-Sign-Off Audit
+Before creating or updating the sign-off report:
+1. Confirm that all paths in `test-results/*.log` and markdown reports are strictly project-relative (no `/Users/...`, `/home/...`).
+2. Verify zero personal data (usernames, personal emails, machine hostnames) and zero credentials or tokens exist in test artifacts.
+3. Ensure any captured logs or error traces have local system paths stripped and sensitive values redacted before committing.
+
+### 5. Archive QA Sign-Off Report
+When all acceptance criteria pass and privacy guardrails are verified:
 1. Compile and save the final report to:
    `test-reports/QA-REPORT-<feature-name>-<YYYY-MM-DD>.md`
-2. Follow the standard template with the pass/fail verification matrix.
+2. Follow the standard template with the pass/fail verification matrix and path hygiene confirmation.
 3. Mark **Sign-Off Status: APPROVED**.
+

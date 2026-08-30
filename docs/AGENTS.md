@@ -96,6 +96,7 @@ flowchart TD
   2. **Frontend Testing:** Hook, component, and utility unit tests with Vitest and React Testing Library.
   3. **Browser E2E Validation:** Uses the headless browser (`/browser`) to test user flows (Morning Check-In wizard, board drag-and-drop, Standup markdown export, calendar date jumping).
   4. **Test Archival:** Persists all sign-off reports to `test-reports/QA-REPORT-<feature-name>-<YYYY-MM-DD>.md` and logs/screenshots to `test-results/`.
+  5. **Privacy & Path Sanitization:** Enforces strict guardrails ensuring all test outputs (`test-results/`) and reports (`test-reports/`) contain only project-relative paths and zero personal data (usernames, home paths, personal emails) or credentials.
 
 ---
 
@@ -121,7 +122,7 @@ Workflow 4: Blocker Triage & Daily Standup       [Squad]
 
 Workflow 5: QA Verification & Acceptance Gate    [@tester]
             - Automated emulator integration & /browser headless journeys
-            - Persistent test archival to test-reports/ & test-results/
+            - Persistent, sanitized test archival to test-reports/ & test-results/
 
 Workflow 6: Sprint Review & Sign-Off             [@product-owner, @tester, User]
             - Verification against Definition of Done (DoD)
@@ -142,8 +143,8 @@ Workflow 7: Sprint Retrospective & Continuous Imp. [Squad]
 | **Infrastructure** | `docker-compose.yml`, `firestore.indexes.json` | `@devops-engineer` | `@developer`, `@tester` |
 | **Workflow Runbooks** | `.agents/workflows/`, `.agents/skills/` | Squad | All Agents |
 | **Source Code** | `internal/...`, `frontend/src/...` | `@developer` | `@tester` |
-| **QA Sign-Off Report** | `test-reports/QA-REPORT-<feature>-<date>.md` | `@tester` | `@product-owner`, Team |
-| **Test Logs & Media** | `test-results/screenshots/`, `test-results/*.log` | `@tester` | Team Audit |
+| **QA Sign-Off Report** | `test-reports/QA-REPORT-<feature>-<date>.md` (audited for path & privacy hygiene) | `@tester` | `@product-owner`, Team |
+| **Test Logs & Media** | `test-results/screenshots/`, `test-results/*.log` (sanitized project-relative paths, zero PII) | `@tester` | Team Audit |
 
 
 ---

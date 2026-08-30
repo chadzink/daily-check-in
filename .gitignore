@@ -29,7 +29,7 @@ firebase-adminsdk*.json
 # Go Build & Binary Artifacts
 bin/
 dist/
-server
+/server
 *.exe
 *.exe~
 *.dll

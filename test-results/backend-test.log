@@ -1,0 +1,7 @@
+?   	github.com/user/dailycheckin	[no test files]
+?   	github.com/user/dailycheckin/cmd/server	[no test files]
+=== RUN   TestHealthCheckHandler
+--- PASS: TestHealthCheckHandler (0.00s)
+PASS
+ok  	github.com/user/dailycheckin/internal/api	(cached)
+?   	github.com/user/dailycheckin/internal/middleware	[no test files]

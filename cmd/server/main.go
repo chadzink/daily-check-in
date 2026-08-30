@@ -1,0 +1,106 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"io"
+	"io/fs"
+	"net/http"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/chadzink/dailycheckin"
+	"github.com/chadzink/dailycheckin/internal/api"
+	"github.com/chadzink/dailycheckin/internal/middleware"
+	"github.com/labstack/echo/v4"
+)
+
+func main() {
+	e := echo.New()
+	e.HideBanner = true
+
+	// Configure standard middleware
+	middleware.SetupMiddlewares(e)
+
+	// API route registration
+	apiGroup := e.Group("/api")
+	apiGroup.GET("/health", api.HealthCheckHandler)
+
+	// Static asset routing (serving embedded frontend SPA)
+	setupStaticRoutes(e, dailycheckin.DistFS())
+
+	// Resolve server port
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	// Graceful shutdown channel
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// Start server in goroutine
+	go func() {
+		e.Logger.Infof("DailyCheckIn server listening on :%s", port)
+		if err := e.Start(":" + port); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			e.Logger.Fatalf("Server shutdown with error: %v", err)
+		}
+	}()
+
+	// Wait for interrupt signal
+	<-ctx.Done()
+	e.Logger.Info("Shutting down server gracefully...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := e.Shutdown(shutdownCtx); err != nil {
+		e.Logger.Errorf("Server forced to shutdown: %v", err)
+	}
+
+	e.Logger.Info("Server stopped.")
+}
+
+func setupStaticRoutes(e *echo.Echo, distFS fs.FS) {
+	fileServer := http.FileServer(http.FS(distFS))
+
+	e.GET("/*", func(c echo.Context) error {
+		reqPath := c.Request().URL.Path
+
+		// Do not intercept /api routes
+		if strings.HasPrefix(reqPath, "/api") {
+			return echo.ErrNotFound
+		}
+
+		cleanPath := strings.TrimPrefix(reqPath, "/")
+		if cleanPath == "" {
+			cleanPath = "index.html"
+		}
+
+		// Check if file exists in embedded filesystem
+		file, err := distFS.Open(cleanPath)
+		if err == nil {
+			stat, statErr := file.Stat()
+			_ = file.Close()
+			if statErr == nil && !stat.IsDir() {
+				fileServer.ServeHTTP(c.Response(), c.Request())
+				return nil
+			}
+		}
+
+		// Fallback to index.html for SPA routes
+		indexFile, err := distFS.Open("index.html")
+		if err != nil {
+			return c.String(http.StatusOK, "DailyCheckIn SPA (dist/index.html not found)")
+		}
+		defer indexFile.Close()
+
+		c.Response().Header().Set(echo.HeaderContentType, echo.MIMETextHTMLCharsetUTF8)
+		c.Response().WriteHeader(http.StatusOK)
+		_, err = io.Copy(c.Response(), indexFile)
+		return err
+	})
+}

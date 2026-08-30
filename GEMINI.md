@@ -120,4 +120,6 @@ go build -o bin/dailycheckin ./cmd/server
 - [ ] UI adheres to `@ui-designer` Tailwind design system and supports keyboard accessibility and dark/light themes.
 - [ ] Firebase emulator and multi-stage Docker builds pass cleanly without warnings.
 - [ ] All acceptance criteria defined in `/plans/` are verified with automated tests or browser validation, and saved in `test-reports/`.
+- [ ] Test results (`test-results/`) and reports (`test-reports/`) contain only project-relative paths with no absolute filesystem paths, personal user identifiers, or sensitive credentials.
 - [ ] Production build succeeds and embeds the frontend SPA into the Go binary (`go:embed`).
+
