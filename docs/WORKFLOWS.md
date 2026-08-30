@@ -160,14 +160,16 @@ flowchart TD
 1. **Automated Suite Execution:**
    - Run Go integration tests with `FIRESTORE_EMULATOR_HOST=localhost:8080`.
    - Run Vitest component and hook test suites.
-   - Capture console outputs into `test-results/*.log`.
+   - Capture console outputs into `test-results/*.log` (e.g. `go test -v ./... | tee test-results/backend-test.log`).
 2. **Headless Browser E2E Journeys (`/browser`):**
    - Execute user journeys: Morning Check-In, drag-and-drop board reordering, checkbox completions, End-of-Day Check-Out, and Markdown Standup copying.
    - Capture visual screenshots in `test-results/screenshots/`.
 3. **Defect Loop (If Acceptance Criteria Fail):**
    - File detailed defect note with: failing Gherkin scenario, expected vs. actual behavior, screenshot link, and reproduction steps.
    - Hand back to `@developer` for remediation.
-4. **Sign-Off Archival:**
+4. **Privacy & Path Hygiene Audit:**
+   - Audit test logs and reports to guarantee zero absolute system paths (`/Users/...`, `/home/...`), zero personal identifiers (usernames, emails), and zero leaked secrets or tokens.
+5. **Sign-Off Archival:**
    - Compile and persist `test-reports/QA-REPORT-<feature-name>-<YYYY-MM-DD>.md` using the standard template.
 
 ---
@@ -185,6 +187,7 @@ flowchart TD
 - [ ] Go unit/service tests pass: `go test -v ./...`.
 - [ ] Frontend tests and production bundle build cleanly: `npm test && npm run build`.
 - [ ] Single binary packages static frontend assets (`//go:embed`).
+- [ ] Test results (`test-results/`) and QA reports (`test-reports/`) strictly contain project-relative paths with zero personal info (PII) or credentials.
 - [ ] QA sign-off report committed in `test-reports/`.
 - [ ] User review approved.
 

@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  emulators:
+    build:
+      context: .
+      dockerfile: docker/emulator/Dockerfile
+    container_name: dailycheckin-emulators
+    ports:
+      - "8085:8085" # Firestore Emulator
+      - "9099:9099" # Firebase Auth Emulator
+      - "4000:4000" # Firebase Emulator UI
+    volumes:
+      - ./firebase.json:/app/firebase.json:ro
+      - ./firestore.rules:/app/firestore.rules:ro
+      - ./firestore.indexes.json:/app/firestore.indexes.json:ro
+    environment:
+      - PROJECT_ID=dailycheckin-local
+    restart: unless-stopped

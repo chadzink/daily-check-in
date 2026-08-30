@@ -61,6 +61,26 @@ Always persist test results and evidence to disk so the team can review past tes
 
 ---
 
+### Privacy & Path Sanitization Guardrails (Personal Info & Path Hygiene)
+
+To safeguard developer privacy and maintain clean, reproducible test documentation, `@tester` must enforce strict guardrails on all artifacts saved to `test-results/` and `test-reports/`:
+
+1. **Project-Relative Paths Only:**
+   - **Never** include full system absolute paths (e.g., `/Users/...`, `/home/...`, `C:\Users\...`).
+   - Paths referencing source files, components, test fixtures, logs, or screenshots must strictly be relative to the repository root (e.g., `frontend/...`, `internal/service/...`, `test-results/...`).
+2. **Personal Information (PII) Exclusion & Redaction:**
+   - **Redacted or Omitted:** System usernames, developer account names, home directories, personal email addresses, and machine hostnames must never appear in test outputs or QA reports.
+   - Standard squad agent handles (e.g., `@tester`, `@developer`, `@ui-designer`) are permitted.
+3. **Credentials & Secrets Exclusion:**
+   - Auth tokens, JWT payloads, Firebase service account keys, Bearer headers, cookie values, or sensitive environment variables must be redacted (`[REDACTED]`) or excluded entirely.
+4. **Audit & Pre-Sign-Off Verification:**
+   - When recording test logs or writing QA sign-off reports, ensure test runners and logs do not output full local paths (e.g. ensure Vitest startup paths or stack traces are project-relative).
+   - Before signing off on any test report, verify:
+     - Zero absolute paths (`/Users/`, `/home/`) in `test-results/` and `test-reports/`.
+     - Zero personal usernames, emails, or credentials leaked.
+
+---
+
 ### Standard QA Verification Report Template (`test-reports/QA-REPORT-<feature-name>-<YYYY-MM-DD>.md`)
 
 ```markdown
@@ -87,6 +107,7 @@ Always persist test results and evidence to disk so the team can review past tes
 - **Backend Tests (Go):** [X] Passed, [Y] Failed, [Z] Skipped (Log: `test-results/backend-test.log`)
 - **Frontend Tests (Vitest):** [X] Passed, [Y] Failed (Log: `test-results/frontend-test.log`)
 - **Coverage:** [X]% statement coverage
+- **Privacy & Path Hygiene:** Verified project-relative paths only, zero absolute paths, zero PII or credentials.
 
 ---
 
