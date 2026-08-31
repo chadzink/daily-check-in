@@ -122,4 +122,7 @@ go build -o bin/dailycheckin ./cmd/server
 - [ ] All acceptance criteria defined in `/plans/` are verified with automated tests or browser validation, and saved in `test-reports/`.
 - [ ] Test results (`test-results/`) and reports (`test-reports/`) contain only project-relative paths with no absolute filesystem paths, personal user identifiers, or sensitive credentials.
 - [ ] Production build succeeds and embeds the frontend SPA into the Go binary (`go:embed`).
+- [ ] Go API array responses initialize slice fields as empty slices (`make([]T, 0)`) so they serialize as `[]` instead of `null`.
+- [ ] Firestore queries use batch operations (`client.GetAll` / `client.Batch`) to prevent N+1 query patterns during document joins.
+- [ ] Frontend code passes strict TypeScript compilation without unused import warnings (`npm run build`).
 

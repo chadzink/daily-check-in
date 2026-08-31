@@ -5,10 +5,10 @@
 
  RUN  v3.2.7 frontend
 
- ✓ src/App.test.tsx (3 tests) 131ms
+ ✓ src/App.test.tsx (3 tests) 133ms
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  11:12:53
-   Duration  2.97s (transform 190ms, setup 96ms, collect 1.41s, tests 131ms, environment 388ms, prepare 114ms)
+   Start at  05:45:47
+   Duration  3.10s (transform 198ms, setup 99ms, collect 1.42s, tests 133ms, environment 411ms, prepare 139ms)
 

@@ -15,6 +15,8 @@ import (
 	"github.com/chadzink/dailycheckin"
 	"github.com/chadzink/dailycheckin/internal/api"
 	"github.com/chadzink/dailycheckin/internal/middleware"
+	"github.com/chadzink/dailycheckin/internal/repository"
+	"github.com/chadzink/dailycheckin/internal/service"
 	"github.com/labstack/echo/v4"
 )
 
@@ -25,9 +27,43 @@ func main() {
 	// Configure standard middleware
 	middleware.SetupMiddlewares(e)
 
+	// Context for initialization
+	initCtx, initCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer initCancel()
+
+	// Initialize Firestore Client
+	firestoreClient, err := repository.NewFirestoreClient(initCtx, "")
+	if err != nil {
+		e.Logger.Fatalf("Failed to initialize Firestore client: %v", err)
+	}
+	defer firestoreClient.Close()
+
+	// Initialize Repositories
+	taskRepo := repository.NewTaskRepository(firestoreClient)
+	daySessionRepo := repository.NewDaySessionRepository(firestoreClient)
+	dayTaskRepo := repository.NewDayTaskRepository(firestoreClient)
+
+	// Initialize Services
+	taskService := service.NewTaskService(taskRepo, daySessionRepo, dayTaskRepo)
+	daySessionService := service.NewDaySessionService(daySessionRepo, dayTaskRepo, taskRepo)
+
 	// API route registration
 	apiGroup := e.Group("/api")
 	apiGroup.GET("/health", api.HealthCheckHandler)
+
+	// Authenticated API routes
+	authGroup := apiGroup.Group("")
+	authGroup.Use(middleware.FirebaseAuthMiddleware(nil))
+
+	// Register domain handlers
+	backlogHandler := api.NewBacklogHandler(taskService)
+	backlogHandler.RegisterRoutes(authGroup)
+
+	tasksHandler := api.NewTasksHandler(taskService)
+	tasksHandler.RegisterRoutes(authGroup)
+
+	daysHandler := api.NewDaysHandler(daySessionService)
+	daysHandler.RegisterRoutes(authGroup)
 
 	// Static asset routing (serving embedded frontend SPA)
 	setupStaticRoutes(e, dailycheckin.DistFS())
