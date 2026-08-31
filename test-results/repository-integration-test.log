@@ -1,0 +1,8 @@
+=== RUN   TestScenario1_MasterTaskCRUD
+--- PASS: TestScenario1_MasterTaskCRUD (0.05s)
+=== RUN   TestScenario2_SingleCallDaySessionJoinedQuerying
+--- PASS: TestScenario2_SingleCallDaySessionJoinedQuerying (0.02s)
+=== RUN   TestScenario3_UserDataIsolation
+--- PASS: TestScenario3_UserDataIsolation (0.01s)
+PASS
+ok  	github.com/user/dailycheckin/internal/repository	0.385s

@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "tasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_archived", "order": "ASCENDING" },
+        { "fieldPath": "backlog_order", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "day_tasks",
       "queryScope": "COLLECTION",
       "fields": [
