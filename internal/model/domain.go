@@ -141,9 +141,18 @@ type UpdateDayTaskRequest struct {
 	BlockerReason *string    `json:"blocker_reason,omitempty"`
 }
 
+// PullDayTaskRequest specifies parameters to pull a master task into a day session
+type PullDayTaskRequest struct {
+	TaskID        string    `json:"task_id"`
+	Status        DayStatus `json:"status,omitempty"`
+	PriorityOrder int       `json:"priority_order,omitempty"`
+}
+
 // ReorderDayTasksRequest holds ordered day task IDs for reordering within a day
 type ReorderDayTasksRequest struct {
-	OrderedDayTaskIDs []string `json:"ordered_day_task_ids"`
+	DaySessionDate    string     `json:"day_session_date,omitempty"`
+	Status            *DayStatus `json:"status,omitempty"`
+	OrderedDayTaskIDs []string   `json:"ordered_day_task_ids"`
 }
 
 // StandardErrorResponse represents standard API error responses

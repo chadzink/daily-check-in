@@ -120,3 +120,75 @@ func TestDaySessionServiceLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, afterDelete.Tasks.Blocked)
 }
+
+func TestDaySessionService_PullDemotePatchReorder(t *testing.T) {
+	taskSvc, daySessionSvc := setupServices(t)
+	ctx := context.Background()
+	userID := "svc-user-" + uuid.New().String()
+	date := "2026-09-02"
+
+	// Create 2 master tasks in backlog
+	task1, err := taskSvc.CreateTask(ctx, userID, model.CreateTaskRequest{Title: "Task 1"})
+	require.NoError(t, err)
+	task2, err := taskSvc.CreateTask(ctx, userID, model.CreateTaskRequest{Title: "Task 2"})
+	require.NoError(t, err)
+
+	// 1. Pull Task 1 into Today
+	pulled1, err := daySessionSvc.PullDayTask(ctx, userID, date, model.PullDayTaskRequest{
+		TaskID:        task1.ID,
+		Status:        model.StatusToday,
+		PriorityOrder: 1,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, task1.ID, pulled1.TaskID)
+	assert.Equal(t, model.StatusToday, pulled1.Status)
+
+	// 2. Pull Task 2 into Today
+	pulled2, err := daySessionSvc.PullDayTask(ctx, userID, date, model.PullDayTaskRequest{
+		TaskID:        task2.ID,
+		Status:        model.StatusToday,
+		PriorityOrder: 2,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 2, pulled2.PriorityOrder)
+
+	// 3. Patch Task 1: Complete it (Gherkin Scenario 1: synchronizes with master task)
+	completed := true
+	patched, err := daySessionSvc.PatchDayTask(ctx, userID, pulled1.ID, model.UpdateDayTaskRequest{
+		IsCompleted: &completed,
+	})
+	require.NoError(t, err)
+	assert.True(t, patched.IsCompleted)
+	assert.NotNil(t, patched.CompletedAt)
+
+	// Check master task was synchronized!
+	master1, err := taskSvc.GetTaskByID(ctx, userID, task1.ID)
+	require.NoError(t, err)
+	assert.True(t, master1.IsCompleted)
+	assert.NotNil(t, master1.CompletedAt)
+
+	// 4. Reorder Day Tasks (Task 2 before Task 1)
+	statusToday := model.StatusToday
+	err = daySessionSvc.ReorderDayTasksDirect(ctx, userID, model.ReorderDayTasksRequest{
+		DaySessionDate:    date,
+		Status:            &statusToday,
+		OrderedDayTaskIDs: []string{pulled2.ID, pulled1.ID},
+	})
+	require.NoError(t, err)
+
+	// Verify order in joined query
+	session, err := daySessionSvc.GetDaySessionWithTasks(ctx, userID, date)
+	require.NoError(t, err)
+	require.Len(t, session.Tasks.Today, 2)
+	assert.Equal(t, pulled2.ID, session.Tasks.Today[0].DayTaskID)
+	assert.Equal(t, pulled1.ID, session.Tasks.Today[1].DayTaskID)
+
+	// 5. Demote Task 2 back to backlog
+	err = daySessionSvc.DemoteDayTask(ctx, userID, date, pulled2.ID)
+	require.NoError(t, err)
+
+	sessionAfterDemote, err := daySessionSvc.GetDaySessionWithTasks(ctx, userID, date)
+	require.NoError(t, err)
+	assert.Len(t, sessionAfterDemote.Tasks.Today, 1)
+	assert.Equal(t, pulled1.ID, sessionAfterDemote.Tasks.Today[0].DayTaskID)
+}

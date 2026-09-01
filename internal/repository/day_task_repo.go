@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -16,6 +17,7 @@ import (
 type DayTaskRepository interface {
 	Create(ctx context.Context, userID, date string, dayTask *model.DayTask) error
 	GetByID(ctx context.Context, userID, date, dayTaskID string) (*model.DayTask, error)
+	FindByID(ctx context.Context, userID, dayTaskID string) (*model.DayTask, string, error)
 	ListByDate(ctx context.Context, userID, date string) ([]*model.DayTask, error)
 	Update(ctx context.Context, userID, date string, dayTask *model.DayTask) error
 	Delete(ctx context.Context, userID, date, dayTaskID string) error
@@ -77,6 +79,35 @@ func (r *firestoreDayTaskRepository) GetByID(ctx context.Context, userID, date, 
 		return nil, fmt.Errorf("failed to decode day task: %w", err)
 	}
 	return &dayTask, nil
+}
+
+func (r *firestoreDayTaskRepository) FindByID(ctx context.Context, userID, dayTaskID string) (*model.DayTask, string, error) {
+	if userID == "" || dayTaskID == "" {
+		return nil, "", fmt.Errorf("%w: user_id and day_task_id are required", model.ErrInvalidInput)
+	}
+
+	iter := r.client.CollectionGroup("day_tasks").Where("id", "==", dayTaskID).Documents(ctx)
+	snaps, err := iter.GetAll()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to query day task by id: %w", err)
+	}
+
+	expectedPrefix := fmt.Sprintf("users/%s/", userID)
+	for _, snap := range snaps {
+		if strings.Contains(snap.Ref.Path, expectedPrefix) {
+			var dt model.DayTask
+			if err := snap.DataTo(&dt); err != nil {
+				return nil, "", fmt.Errorf("failed to decode day task: %w", err)
+			}
+			date := dt.DaySessionID
+			if date == "" && snap.Ref.Parent != nil && snap.Ref.Parent.Parent != nil {
+				date = snap.Ref.Parent.Parent.ID
+			}
+			return &dt, date, nil
+		}
+	}
+
+	return nil, "", model.ErrNotFound
 }
 
 func (r *firestoreDayTaskRepository) ListByDate(ctx context.Context, userID, date string) ([]*model.DayTask, error) {

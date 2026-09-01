@@ -6,6 +6,8 @@ import {
   DaySessionWithTasks,
   DayTaskWithDetails,
   MasterTask,
+  PullDayTaskPayload,
+  ReorderDayTasksPayload,
   UpdateDaySessionPayload,
   UpdateDayTaskPayload,
   UpdateTaskPayload,
@@ -106,6 +108,51 @@ export async function reorderDayTasks(
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ordered_day_task_ids: orderedDayTaskIds }),
+  });
+  return handleResponse<{ success: boolean }>(res);
+}
+
+export async function pullBacklogTask(
+  date: string,
+  payload: PullDayTaskPayload
+): Promise<DayTaskWithDetails> {
+  const res = await fetch(`${BASE_URL}/days/${date}/pull`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<DayTaskWithDetails>(res);
+}
+
+export async function demoteDayTask(
+  date: string,
+  dayTaskId: string
+): Promise<{ success: boolean }> {
+  const res = await fetch(`${BASE_URL}/days/${date}/tasks/${dayTaskId}/demote`, {
+    method: 'POST',
+  });
+  return handleResponse<{ success: boolean }>(res);
+}
+
+export async function patchDayTask(
+  dayTaskId: string,
+  payload: UpdateDayTaskPayload
+): Promise<DayTaskWithDetails> {
+  const res = await fetch(`${BASE_URL}/day-tasks/${dayTaskId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<DayTaskWithDetails>(res);
+}
+
+export async function reorderDayTasksDirect(
+  payload: ReorderDayTasksPayload
+): Promise<{ success: boolean }> {
+  const res = await fetch(`${BASE_URL}/day-tasks/reorder`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
   return handleResponse<{ success: boolean }>(res);
 }

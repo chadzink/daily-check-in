@@ -90,3 +90,16 @@ export interface UpdateDayTaskPayload {
   priority_order?: number;
   blocker_reason?: string | null;
 }
+
+export interface PullDayTaskPayload {
+  task_id: string;
+  status: DayStatus;
+  priority_order?: number;
+}
+
+export interface ReorderDayTasksPayload {
+  day_session_date?: string;
+  status?: DayStatus;
+  ordered_day_task_ids: string[];
+}
+

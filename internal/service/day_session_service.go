@@ -18,6 +18,10 @@ type DaySessionService interface {
 	UpdateDayTask(ctx context.Context, userID, date, dayTaskID string, req model.UpdateDayTaskRequest) (*model.DayTaskWithDetails, error)
 	DeleteDayTask(ctx context.Context, userID, date, dayTaskID string) error
 	ReorderDayTasks(ctx context.Context, userID, date string, req model.ReorderDayTasksRequest) error
+	PullDayTask(ctx context.Context, userID, date string, req model.PullDayTaskRequest) (*model.DayTask, error)
+	DemoteDayTask(ctx context.Context, userID, date, dayTaskID string) error
+	PatchDayTask(ctx context.Context, userID, dayTaskID string, req model.UpdateDayTaskRequest) (*model.DayTask, error)
+	ReorderDayTasksDirect(ctx context.Context, userID string, req model.ReorderDayTasksRequest) error
 }
 
 type daySessionService struct {
@@ -243,6 +247,12 @@ func (s *daySessionService) UpdateDayTask(ctx context.Context, userID, date, day
 		} else {
 			dayTask.CompletedAt = nil
 		}
+		// Synchronize completion with master task
+		if masterTask, err := s.taskRepo.GetByID(ctx, userID, dayTask.TaskID); err == nil && masterTask != nil {
+			masterTask.IsCompleted = *req.IsCompleted
+			masterTask.CompletedAt = dayTask.CompletedAt
+			_ = s.taskRepo.Update(ctx, masterTask)
+		}
 	}
 	if req.PriorityOrder != nil {
 		dayTask.PriorityOrder = *req.PriorityOrder
@@ -293,4 +303,117 @@ func (s *daySessionService) ReorderDayTasks(ctx context.Context, userID, date st
 		return model.ErrUnauthorized
 	}
 	return s.dayTaskRepo.Reorder(ctx, userID, date, req.OrderedDayTaskIDs)
+}
+
+func (s *daySessionService) PullDayTask(ctx context.Context, userID, date string, req model.PullDayTaskRequest) (*model.DayTask, error) {
+	if userID == "" {
+		return nil, model.ErrUnauthorized
+	}
+	if date == "" || req.TaskID == "" {
+		return nil, fmt.Errorf("%w: date and task_id are required", model.ErrInvalidInput)
+	}
+
+	// Ensure session exists
+	if _, err := s.daySessionRepo.GetOrCreateByDate(ctx, userID, date); err != nil {
+		return nil, err
+	}
+
+	// Verify master task exists
+	masterTask, err := s.taskRepo.GetByID(ctx, userID, req.TaskID)
+	if err != nil {
+		return nil, err
+	}
+
+	status := req.Status
+	if status == "" {
+		status = model.StatusToday
+	}
+
+	priorityOrder := req.PriorityOrder
+	if priorityOrder <= 0 {
+		existing, _ := s.dayTaskRepo.ListByDate(ctx, userID, date)
+		priorityOrder = len(existing) + 1
+	}
+
+	dayTask := &model.DayTask{
+		ID:            uuid.New().String(),
+		DaySessionID:  date,
+		TaskID:        masterTask.ID,
+		Status:        status,
+		IsCompleted:   false,
+		PriorityOrder: priorityOrder,
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+
+	if err := s.dayTaskRepo.Create(ctx, userID, date, dayTask); err != nil {
+		return nil, fmt.Errorf("failed to persist pulled day task: %w", err)
+	}
+
+	return dayTask, nil
+}
+
+func (s *daySessionService) DemoteDayTask(ctx context.Context, userID, date, dayTaskID string) error {
+	if userID == "" {
+		return model.ErrUnauthorized
+	}
+	if date == "" || dayTaskID == "" {
+		return fmt.Errorf("%w: date and day_task_id are required", model.ErrInvalidInput)
+	}
+	return s.dayTaskRepo.Delete(ctx, userID, date, dayTaskID)
+}
+
+func (s *daySessionService) PatchDayTask(ctx context.Context, userID, dayTaskID string, req model.UpdateDayTaskRequest) (*model.DayTask, error) {
+	if userID == "" {
+		return nil, model.ErrUnauthorized
+	}
+	if dayTaskID == "" {
+		return nil, fmt.Errorf("%w: day_task_id is required", model.ErrInvalidInput)
+	}
+
+	dayTask, date, err := s.dayTaskRepo.FindByID(ctx, userID, dayTaskID)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.Status != nil {
+		dayTask.Status = *req.Status
+	}
+	if req.IsCompleted != nil {
+		dayTask.IsCompleted = *req.IsCompleted
+		if *req.IsCompleted {
+			now := time.Now().UTC()
+			dayTask.CompletedAt = &now
+		} else {
+			dayTask.CompletedAt = nil
+		}
+		// Synchronize completion with master task
+		if masterTask, err := s.taskRepo.GetByID(ctx, userID, dayTask.TaskID); err == nil && masterTask != nil {
+			masterTask.IsCompleted = *req.IsCompleted
+			masterTask.CompletedAt = dayTask.CompletedAt
+			_ = s.taskRepo.Update(ctx, masterTask)
+		}
+	}
+	if req.PriorityOrder != nil {
+		dayTask.PriorityOrder = *req.PriorityOrder
+	}
+	if req.BlockerReason != nil {
+		dayTask.BlockerReason = *req.BlockerReason
+	}
+
+	if err := s.dayTaskRepo.Update(ctx, userID, date, dayTask); err != nil {
+		return nil, fmt.Errorf("failed to update day task: %w", err)
+	}
+
+	return dayTask, nil
+}
+
+func (s *daySessionService) ReorderDayTasksDirect(ctx context.Context, userID string, req model.ReorderDayTasksRequest) error {
+	if userID == "" {
+		return model.ErrUnauthorized
+	}
+	if req.DaySessionDate == "" {
+		return fmt.Errorf("%w: day_session_date is required", model.ErrInvalidInput)
+	}
+	return s.dayTaskRepo.Reorder(ctx, userID, req.DaySessionDate, req.OrderedDayTaskIDs)
 }
