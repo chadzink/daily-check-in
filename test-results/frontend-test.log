@@ -5,12 +5,16 @@
 
  RUN  v3.2.7 frontend
 
- ✓ src/components/board/TaskCard.test.tsx (4 tests) 202ms
- ✓ src/components/board/DailyBoard.test.tsx (2 tests) 276ms
- ✓ src/App.test.tsx (3 tests) 194ms
+ ✓ src/components/board/TaskCard.test.tsx (4 tests) 224ms
+ ✓ src/components/wizards/CheckOutModal.test.tsx (1 test) 390ms
+   ✓ CheckOutModal Component > renders accomplishment review, accepts reflection notes, and submits check-out  389ms
+ ✓ src/App.test.tsx (3 tests) 229ms
+ ✓ src/components/wizards/MorningCheckInModal.test.tsx (1 test) 331ms
+   ✓ MorningCheckInModal Component > progresses through 4 ritual steps and submits check-in  330ms
+ ✓ src/components/board/DailyBoard.test.tsx (2 tests) 332ms
 
- Test Files  3 passed (3)
-      Tests  9 passed (9)
-   Start at  20:54:27
-   Duration  2.79s (transform 511ms, setup 328ms, collect 2.94s, tests 672ms, environment 1.08s, prepare 388ms)
+ Test Files  5 passed (5)
+      Tests  11 passed (11)
+   Start at  12:39:45
+   Duration  3.78s (transform 930ms, setup 647ms, collect 6.83s, tests 1.51s, environment 2.59s, prepare 752ms)
 

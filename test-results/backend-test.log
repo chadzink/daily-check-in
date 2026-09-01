@@ -3,33 +3,41 @@
 === RUN   TestHealthCheckHandler
 --- PASS: TestHealthCheckHandler (0.00s)
 === RUN   TestBacklogAndTasksEndpoints
---- PASS: TestBacklogAndTasksEndpoints (0.04s)
+--- PASS: TestBacklogAndTasksEndpoints (0.06s)
 === RUN   TestDaysEndpoints
 --- PASS: TestDaysEndpoints (0.02s)
 === RUN   TestDayTaskPlan003Endpoints
 --- PASS: TestDayTaskPlan003Endpoints (0.03s)
+=== RUN   TestRitualEndpoints
+--- PASS: TestRitualEndpoints (0.06s)
 PASS
-ok  	github.com/user/dailycheckin/internal/api	(cached)
+ok  	github.com/user/dailycheckin/internal/api	0.618s
 === RUN   TestFirebaseAuthMiddleware_DevUserHeader
 --- PASS: TestFirebaseAuthMiddleware_DevUserHeader (0.00s)
 === RUN   TestFirebaseAuthMiddleware_BearerFallback
 --- PASS: TestFirebaseAuthMiddleware_BearerFallback (0.00s)
 PASS
-ok  	github.com/user/dailycheckin/internal/middleware	(cached)
+ok  	github.com/user/dailycheckin/internal/middleware	0.801s
 ?   	github.com/user/dailycheckin/internal/model	[no test files]
 === RUN   TestScenario1_MasterTaskCRUD
---- PASS: TestScenario1_MasterTaskCRUD (0.04s)
+--- PASS: TestScenario1_MasterTaskCRUD (0.05s)
 === RUN   TestScenario2_SingleCallDaySessionJoinedQuerying
 --- PASS: TestScenario2_SingleCallDaySessionJoinedQuerying (0.02s)
 === RUN   TestScenario3_UserDataIsolation
 --- PASS: TestScenario3_UserDataIsolation (0.01s)
 PASS
-ok  	github.com/user/dailycheckin/internal/repository	(cached)
+ok  	github.com/user/dailycheckin/internal/repository	1.242s
+=== RUN   TestRitualService_MultiDayLookback
+--- PASS: TestRitualService_MultiDayLookback (0.04s)
+=== RUN   TestRitualService_ExecuteMorningCheckIn_AndConflict
+--- PASS: TestRitualService_ExecuteMorningCheckIn_AndConflict (0.03s)
+=== RUN   TestRitualService_ExecuteCheckOut
+--- PASS: TestRitualService_ExecuteCheckOut (0.04s)
 === RUN   TestTaskServiceLifecycle
---- PASS: TestTaskServiceLifecycle (0.04s)
+--- PASS: TestTaskServiceLifecycle (0.01s)
 === RUN   TestDaySessionServiceLifecycle
---- PASS: TestDaySessionServiceLifecycle (0.03s)
+--- PASS: TestDaySessionServiceLifecycle (0.02s)
 === RUN   TestDaySessionService_PullDemotePatchReorder
---- PASS: TestDaySessionService_PullDemotePatchReorder (0.04s)
+--- PASS: TestDaySessionService_PullDemotePatchReorder (0.03s)
 PASS
-ok  	github.com/user/dailycheckin/internal/service	(cached)
+ok  	github.com/user/dailycheckin/internal/service	1.636s
