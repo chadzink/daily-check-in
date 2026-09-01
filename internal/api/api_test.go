@@ -184,3 +184,90 @@ func TestDaysEndpoints(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, notes, updatedSession.Notes)
 }
+
+func TestDayTaskPlan003Endpoints(t *testing.T) {
+	e := setupTestEcho(t)
+	userID := "api-user-" + uuid.New().String()
+	date := "2026-09-03"
+
+	// 1. Create a task in backlog
+	createTaskPayload := model.CreateTaskRequest{
+		Title: "Plan 003 Board Implementation",
+	}
+	body, _ := json.Marshal(createTaskPayload)
+	req := httptest.NewRequest(http.MethodPost, "/api/tasks", bytes.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set("X-User-ID", userID)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusCreated, rec.Code)
+	var masterTask model.Task
+	_ = json.Unmarshal(rec.Body.Bytes(), &masterTask)
+
+	// 2. Pull task into Today: POST /api/days/:date/pull
+	pullPayload := model.PullDayTaskRequest{
+		TaskID:        masterTask.ID,
+		Status:        model.StatusToday,
+		PriorityOrder: 1,
+	}
+	body, _ = json.Marshal(pullPayload)
+	req = httptest.NewRequest(http.MethodPost, "/api/days/"+date+"/pull", bytes.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusCreated, rec.Code)
+	var dayTask model.DayTask
+	_ = json.Unmarshal(rec.Body.Bytes(), &dayTask)
+	assert.Equal(t, masterTask.ID, dayTask.TaskID)
+	assert.Equal(t, model.StatusToday, dayTask.Status)
+
+	// 3. Toggle completion: PATCH /api/day-tasks/:id
+	completed := true
+	patchPayload := model.UpdateDayTaskRequest{
+		IsCompleted: &completed,
+	}
+	body, _ = json.Marshal(patchPayload)
+	req = httptest.NewRequest(http.MethodPatch, "/api/day-tasks/"+dayTask.ID, bytes.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var patchedDT model.DayTask
+	_ = json.Unmarshal(rec.Body.Bytes(), &patchedDT)
+	assert.True(t, patchedDT.IsCompleted)
+	assert.NotNil(t, patchedDT.CompletedAt)
+
+	// Verify master task was updated as well
+	req = httptest.NewRequest(http.MethodGet, "/api/tasks/"+masterTask.ID, nil)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var fetchedMaster model.Task
+	_ = json.Unmarshal(rec.Body.Bytes(), &fetchedMaster)
+	assert.True(t, fetchedMaster.IsCompleted)
+
+	// 4. Reorder day tasks: PUT /api/day-tasks/reorder
+	statusToday := model.StatusToday
+	reorderPayload := model.ReorderDayTasksRequest{
+		DaySessionDate:    date,
+		Status:            &statusToday,
+		OrderedDayTaskIDs: []string{dayTask.ID},
+	}
+	body, _ = json.Marshal(reorderPayload)
+	req = httptest.NewRequest(http.MethodPut, "/api/day-tasks/reorder", bytes.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// 5. Demote day task back to backlog: POST /api/days/:date/tasks/:id/demote
+	req = httptest.NewRequest(http.MethodPost, "/api/days/"+date+"/tasks/"+dayTask.ID+"/demote", nil)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+}

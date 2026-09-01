@@ -125,4 +125,7 @@ go build -o bin/dailycheckin ./cmd/server
 - [ ] Go API array responses initialize slice fields as empty slices (`make([]T, 0)`) so they serialize as `[]` instead of `null`.
 - [ ] Firestore queries use batch operations (`client.GetAll` / `client.Batch`) to prevent N+1 query patterns during document joins.
 - [ ] Frontend code passes strict TypeScript compilation without unused import warnings (`npm run build`).
+- [ ] UI components consuming query state use defensive optional chaining (`data?.field || []`) to prevent uncaught exceptions during partial loads or test mock isolation.
+- [ ] Test log sanitization scripts run with explicit target file paths to guarantee path hygiene without stdin blocking.
+
 

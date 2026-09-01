@@ -13,10 +13,12 @@ import {
   Layers
 } from 'lucide-react';
 import { fetchHealth } from './api/health';
+import { DailyBoard } from './components/board/DailyBoard';
 
 export const App: React.FC = () => {
   const currentDate = new Date();
   const formattedDate = format(currentDate, 'EEEE, MMMM d, yyyy');
+  const currentDateISO = format(currentDate, 'yyyy-MM-dd');
 
   const { data, error, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['health'],
@@ -28,7 +30,7 @@ export const App: React.FC = () => {
     <div className="min-h-screen bg-slate-950 text-slate-100 bg-mesh-dark flex flex-col selection:bg-indigo-500 selection:text-white">
       {/* Top Navigation Bar */}
       <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-indigo-500 to-sky-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
               <Layers className="h-5 w-5 text-white" />
@@ -38,7 +40,7 @@ export const App: React.FC = () => {
                 DailyCheckIn
               </span>
               <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                v0.1.0
+                Milestone 3
               </span>
             </div>
           </div>
@@ -80,7 +82,7 @@ export const App: React.FC = () => {
       </header>
 
       {/* Main Content Container */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
         
         {/* Offline Alert Banner */}
         {isError && (
@@ -117,33 +119,31 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* Hero Section */}
-        <section className="glass-panel rounded-2xl p-8 shadow-2xl relative overflow-hidden">
-          <div className="relative z-10 max-w-3xl">
-            <div className="inline-flex items-center space-x-2 px-2.5 py-1 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium mb-4">
+        {/* Board Header & Title */}
+        <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/60">
+          <div>
+            <div className="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium mb-1.5">
               <Activity className="h-3.5 w-3.5 text-indigo-400" />
-              <span>Sprint 0 • Milestone 1 Active</span>
+              <span>Milestone 3 • 4-Row Execution Board</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-3">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
               Daily Execution & Standup Ritual
             </h1>
-            <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-              Full-stack developer workspace combining Scrum principles with date-based session tracking, automated task rollovers, and instant standup reports.
-            </p>
-          </div>
-          
-          <div className="absolute right-0 bottom-0 opacity-5 pointer-events-none transform translate-x-8 translate-y-8">
-            <Layers className="h-96 w-96 text-white" />
           </div>
         </section>
 
+        {/* 4-Row Daily Execution Board */}
+        <section>
+          <DailyBoard date={currentDateISO} />
+        </section>
+
         {/* System Stack & Connectivity Grid */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-4 border-t border-slate-800/60">
           {/* Card 1: Echo Backend */}
-          <div className="glass-panel rounded-xl p-6 transition-all hover:border-slate-700/80">
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-10 w-10 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
-                <Server className="h-5 w-5" />
+          <div className="glass-panel rounded-xl p-5 transition-all hover:border-slate-700/80">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-9 w-9 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                <Server className="h-4 w-4" />
               </div>
               {data?.status === 'healthy' ? (
                 <span className="inline-flex items-center text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
@@ -155,68 +155,49 @@ export const App: React.FC = () => {
                 </span>
               )}
             </div>
-            <h2 className="text-sm font-semibold text-white">Go Echo Backend</h2>
-            <p className="text-xs text-slate-400 mt-1">
-              High-performance HTTP API & static asset server listening on <span className="font-mono text-slate-300">:8080</span>.
+            <h2 className="text-xs font-semibold text-white">Go Echo Backend</h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              REST endpoints on <span className="font-mono text-slate-300">:8080</span>.
             </p>
-            <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-              <span>Version: {data?.version || '0.1.0'}</span>
-              <span className="font-mono text-[11px]">/api/health</span>
-            </div>
           </div>
 
           {/* Card 2: Firestore Emulator */}
-          <div className="glass-panel rounded-xl p-6 transition-all hover:border-slate-700/80">
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-10 w-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-                <Database className="h-5 w-5" />
+          <div className="glass-panel rounded-xl p-5 transition-all hover:border-slate-700/80">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-9 w-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                <Database className="h-4 w-4" />
               </div>
               <span className="inline-flex items-center text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                 <CheckCircle2 className="h-3 w-3 mr-1" /> Ready
               </span>
             </div>
-            <h2 className="text-sm font-semibold text-white">Cloud Firestore</h2>
-            <p className="text-xs text-slate-400 mt-1">
-              Local document database emulator running on <span className="font-mono text-slate-300">:8085</span> with composite indexes.
+            <h2 className="text-xs font-semibold text-white">Cloud Firestore</h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Emulator on <span className="font-mono text-slate-300">:8085</span>.
             </p>
-            <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-              <span>Single Project Mode</span>
-              <span className="font-mono text-[11px]">dailycheckin-local</span>
-            </div>
           </div>
 
           {/* Card 3: Firebase Auth & UI */}
-          <div className="glass-panel rounded-xl p-6 transition-all hover:border-slate-700/80">
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-10 w-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-                <ShieldCheck className="h-5 w-5" />
+          <div className="glass-panel rounded-xl p-5 transition-all hover:border-slate-700/80">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-9 w-9 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <ShieldCheck className="h-4 w-4" />
               </div>
               <span className="inline-flex items-center text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                 <CheckCircle2 className="h-3 w-3 mr-1" /> Ready
               </span>
             </div>
-            <h2 className="text-sm font-semibold text-white">Auth & Emulator UI</h2>
-            <p className="text-xs text-slate-400 mt-1">
-              Auth emulator on <span className="font-mono text-slate-300">:9099</span> and dashboard interface on <span className="font-mono text-slate-300">:4000</span>.
+            <h2 className="text-xs font-semibold text-white">Auth & UI</h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Emulator UI on <a href="http://localhost:4000" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">:4000</a>.
             </p>
-            <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-              <a 
-                href="http://localhost:4000" 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-indigo-400 hover:text-indigo-300 transition-colors"
-              >
-                Open Dashboard &rarr;
-              </a>
-              <span className="font-mono text-[11px]">localhost:4000</span>
-            </div>
           </div>
         </section>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-slate-800/80 py-4 bg-slate-950/80 text-center text-xs text-slate-500">
-        <p>DailyCheckIn • Scrum Execution Rituals • Milestone 1: Project Scaffolding</p>
+        <p>DailyCheckIn • Scrum Execution Rituals • Milestone 3: 4-Row Execution Board</p>
       </footer>
     </div>
   );
