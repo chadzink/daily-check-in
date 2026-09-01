@@ -18,6 +18,10 @@ import { TodayRow } from './TodayRow';
 import { BlockedRow } from './BlockedRow';
 import { BacklogRow } from './BacklogRow';
 import { BlockerReasonModal } from './BlockerReasonModal';
+import { DaySessionActionBar } from './DaySessionActionBar';
+import { MorningCheckInBanner } from './MorningCheckInBanner';
+import { MorningCheckInModal } from '../wizards/MorningCheckInModal';
+import { CheckOutModal } from '../wizards/CheckOutModal';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface DailyBoardProps {
@@ -50,6 +54,25 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date }) => {
     dayTaskId: '',
     taskTitle: '',
   });
+
+  // Ritual wizard modals state
+  const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
+  const [isCheckOutModalOpen, setIsCheckOutModalOpen] = useState(false);
+  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
+  const hasAutoOpenedRef = useRef(false);
+
+  // Auto-launch Morning Check-In modal if session is not yet checked in
+  useEffect(() => {
+    if (
+      daySession &&
+      daySession.session &&
+      !daySession.session.check_in_at &&
+      !hasAutoOpenedRef.current
+    ) {
+      hasAutoOpenedRef.current = true;
+      setIsCheckInModalOpen(true);
+    }
+  }, [daySession]);
 
   // Keyboard shortcut refs
   const todayQuickAddRef = useRef<HTMLInputElement>(null);
@@ -243,6 +266,21 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date }) => {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Day Session Action Bar */}
+      <DaySessionActionBar
+        session={daySession?.session}
+        onStartCheckIn={() => setIsCheckInModalOpen(true)}
+        onStartCheckOut={() => setIsCheckOutModalOpen(true)}
+      />
+
+      {/* Un-checked-in Reminder Banner */}
+      {daySession?.session && !daySession.session.check_in_at && !isBannerDismissed && (
+        <MorningCheckInBanner
+          onStartCheckIn={() => setIsCheckInModalOpen(true)}
+          onDismiss={() => setIsBannerDismissed(true)}
+        />
+      )}
+
       {/* Keyboard Shortcuts Helper Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 rounded-xl bg-slate-900/40 border border-slate-800/60 text-xs text-slate-400">
         <span className="font-semibold text-slate-300">Quick Shortcuts:</span>
@@ -311,6 +349,21 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date }) => {
         taskTitle={blockerModalState.taskTitle}
         onConfirm={handleConfirmBlocker}
         onCancel={handleCancelBlocker}
+      />
+
+      {/* Morning Check-In Wizard Modal */}
+      <MorningCheckInModal
+        isOpen={isCheckInModalOpen}
+        onClose={() => setIsCheckInModalOpen(false)}
+        date={date}
+      />
+
+      {/* End-of-Day Check-Out Modal */}
+      <CheckOutModal
+        isOpen={isCheckOutModalOpen}
+        onClose={() => setIsCheckOutModalOpen(false)}
+        date={date}
+        sessionWithTasks={daySession}
       />
     </div>
   );

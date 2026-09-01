@@ -46,6 +46,7 @@ func main() {
 	// Initialize Services
 	taskService := service.NewTaskService(taskRepo, daySessionRepo, dayTaskRepo)
 	daySessionService := service.NewDaySessionService(daySessionRepo, dayTaskRepo, taskRepo)
+	ritualService := service.NewRitualService(daySessionRepo, dayTaskRepo, taskRepo, daySessionService)
 
 	// API route registration
 	apiGroup := e.Group("/api")
@@ -64,6 +65,9 @@ func main() {
 
 	daysHandler := api.NewDaysHandler(daySessionService)
 	daysHandler.RegisterRoutes(authGroup)
+
+	ritualHandler := api.NewRitualHandler(ritualService)
+	ritualHandler.RegisterRoutes(authGroup)
 
 	// Static asset routing (serving embedded frontend SPA)
 	setupStaticRoutes(e, dailycheckin.DistFS())
