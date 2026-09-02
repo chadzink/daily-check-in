@@ -155,6 +155,48 @@ type ReorderDayTasksRequest struct {
 	OrderedDayTaskIDs []string   `json:"ordered_day_task_ids"`
 }
 
+// RolloverAction represents triage decision for an incomplete task during morning check-in
+type RolloverAction string
+
+const (
+	RolloverToToday   RolloverAction = "ROLLOVER"
+	RolloverDemote    RolloverAction = "DEMOTE"
+	RolloverCompleted RolloverAction = "COMPLETE"
+)
+
+// RolloverDecision captures the user's action on an incomplete task
+type RolloverDecision struct {
+	DayTaskID string         `json:"day_task_id"`
+	TaskID    string         `json:"task_id"`
+	Action    RolloverAction `json:"action"`
+}
+
+// CheckInContextResponse provides pre-flight data to populate Morning Check-In wizard
+type CheckInContextResponse struct {
+	TargetDate         string               `json:"target_date"`
+	PreviousDate       string               `json:"previous_date,omitempty"`
+	YesterdayTasks     []DayTaskWithDetails `json:"yesterday_tasks"`
+	RolloverCandidates []DayTaskWithDetails `json:"rollover_candidates"`
+	BacklogTasks       []*Task              `json:"backlog_tasks"`
+	IsAlreadyCheckedIn bool                 `json:"is_already_checked_in"`
+}
+
+// ExecuteCheckInRequest defines payload submitted from Morning Check-In wizard
+type ExecuteCheckInRequest struct {
+	RolloverDecisions []RolloverDecision `json:"rollover_decisions"`
+	PullTaskIDs       []string           `json:"pull_task_ids"`
+	TodayTaskIDs      []string           `json:"today_task_ids"` // Final 1..N order
+	BlockedTaskIDs    []string           `json:"blocked_task_ids,omitempty"`
+	Notes             string             `json:"notes,omitempty"`
+}
+
+// ExecuteCheckOutRequest defines payload submitted from Evening Check-Out wizard
+type ExecuteCheckOutRequest struct {
+	DemoteTaskIDs   []string `json:"demote_task_ids"`
+	CompleteTaskIDs []string `json:"complete_task_ids"`
+	Notes           string   `json:"notes,omitempty"`
+}
+
 // StandardErrorResponse represents standard API error responses
 type StandardErrorResponse struct {
 	Error   string `json:"error"`

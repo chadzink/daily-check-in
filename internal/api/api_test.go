@@ -39,6 +39,7 @@ func setupTestEcho(t *testing.T) *echo.Echo {
 
 	taskService := service.NewTaskService(taskRepo, daySessionRepo, dayTaskRepo)
 	daySessionService := service.NewDaySessionService(daySessionRepo, dayTaskRepo, taskRepo)
+	ritualService := service.NewRitualService(daySessionRepo, dayTaskRepo, taskRepo, daySessionService)
 
 	e := echo.New()
 	apiGroup := e.Group("/api")
@@ -52,6 +53,9 @@ func setupTestEcho(t *testing.T) *echo.Echo {
 
 	daysHandler := api.NewDaysHandler(daySessionService)
 	daysHandler.RegisterRoutes(apiGroup)
+
+	ritualHandler := api.NewRitualHandler(ritualService)
+	ritualHandler.RegisterRoutes(apiGroup)
 
 	return e
 }
@@ -271,3 +275,76 @@ func TestDayTaskPlan003Endpoints(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
+
+func TestRitualEndpoints(t *testing.T) {
+	e := setupTestEcho(t)
+	userID := "api-ritual-user-" + uuid.New().String()
+	date := "2026-09-02"
+
+	// 1. Create a couple tasks in backlog
+	t1Payload := model.CreateTaskRequest{Title: "API Check-in Task 1"}
+	body, _ := json.Marshal(t1Payload)
+	req := httptest.NewRequest(http.MethodPost, "/api/backlog/tasks", bytes.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set("X-User-ID", userID)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusCreated, rec.Code)
+	var t1 model.Task
+	_ = json.Unmarshal(rec.Body.Bytes(), &t1)
+
+	// 2. GET check-in context
+	req = httptest.NewRequest(http.MethodGet, "/api/days/"+date+"/check-in/context", nil)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var ctxResp model.CheckInContextResponse
+	_ = json.Unmarshal(rec.Body.Bytes(), &ctxResp)
+	assert.Equal(t, date, ctxResp.TargetDate)
+	assert.False(t, ctxResp.IsAlreadyCheckedIn)
+	assert.NotEmpty(t, ctxResp.BacklogTasks)
+
+	// 3. POST check-in
+	checkInPayload := model.ExecuteCheckInRequest{
+		TodayTaskIDs: []string{t1.ID},
+		Notes:        "Morning check-in note",
+	}
+	body, _ = json.Marshal(checkInPayload)
+	req = httptest.NewRequest(http.MethodPost, "/api/days/"+date+"/check-in", bytes.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var sessionResp model.DaySessionWithTasks
+	_ = json.Unmarshal(rec.Body.Bytes(), &sessionResp)
+	assert.NotNil(t, sessionResp.Session.CheckInAt)
+	assert.Len(t, sessionResp.Tasks.Today, 1)
+
+	// 4. Duplicate POST check-in -> 409 Conflict
+	req = httptest.NewRequest(http.MethodPost, "/api/days/"+date+"/check-in", bytes.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusConflict, rec.Code)
+
+	// 5. POST check-out
+	checkOutPayload := model.ExecuteCheckOutRequest{
+		CompleteTaskIDs: []string{t1.ID},
+		Notes:           "Evening checkout note",
+	}
+	body, _ = json.Marshal(checkOutPayload)
+	req = httptest.NewRequest(http.MethodPost, "/api/days/"+date+"/check-out", bytes.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var checkoutResp model.DaySessionWithTasks
+	_ = json.Unmarshal(rec.Body.Bytes(), &checkoutResp)
+	assert.NotNil(t, checkoutResp.Session.CheckOutAt)
+	assert.Equal(t, "Evening checkout note", checkoutResp.Session.Notes)
+}
+

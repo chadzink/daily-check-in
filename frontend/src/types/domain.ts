@@ -103,3 +103,34 @@ export interface ReorderDayTasksPayload {
   ordered_day_task_ids: string[];
 }
 
+export type RolloverAction = 'ROLLOVER' | 'DEMOTE' | 'COMPLETE';
+
+export interface RolloverDecision {
+  day_task_id: string;
+  task_id: string;
+  action: RolloverAction;
+}
+
+export interface CheckInContextResponse {
+  target_date: string;
+  previous_date?: string;
+  yesterday_tasks: DayTaskWithDetails[];
+  rollover_candidates: DayTaskWithDetails[];
+  backlog_tasks: MasterTask[];
+  is_already_checked_in: boolean;
+}
+
+export interface ExecuteCheckInRequest {
+  rollover_decisions: RolloverDecision[];
+  pull_task_ids: string[];
+  today_task_ids: string[];
+  blocked_task_ids?: string[];
+  notes?: string;
+}
+
+export interface ExecuteCheckOutRequest {
+  demote_task_ids: string[];
+  complete_task_ids: string[];
+  notes?: string;
+}
+

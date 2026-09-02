@@ -127,5 +127,7 @@ go build -o bin/dailycheckin ./cmd/server
 - [ ] Frontend code passes strict TypeScript compilation without unused import warnings (`npm run build`).
 - [ ] UI components consuming query state use defensive optional chaining (`data?.field || []`) to prevent uncaught exceptions during partial loads or test mock isolation.
 - [ ] Test log sanitization scripts run with explicit target file paths to guarantee path hygiene without stdin blocking.
+- [ ] Session entity deletion or status mutations defensively support matching by either document ID or referenced master entity ID (`dt.ID == id || dt.TaskID == id`) to guard against silent Firestore deletion failures.
+- [ ] Headless browser automation test scripts specify explicit user data profiles (`--user-data-dir=/tmp/...`) to prevent CDP context collisions on shared debugging ports.
 
 
