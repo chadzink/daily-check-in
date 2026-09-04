@@ -134,3 +134,23 @@ export interface ExecuteCheckOutRequest {
   notes?: string;
 }
 
+export interface DaySummary {
+  date: string;
+  has_session: boolean;
+  has_check_in: boolean;
+  has_check_out: boolean;
+  completed_task_count: number;
+  total_task_count: number;
+}
+
+export interface CalendarSummaryResponse {
+  month: string;
+  days: DaySummary[];
+}
+
+export interface StandupExportOptions {
+  includeCompleted: boolean;
+  includeBlockerReasons: boolean;
+  bulletStyle: '-' | '*';
+}
+

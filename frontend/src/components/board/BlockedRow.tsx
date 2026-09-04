@@ -9,6 +9,7 @@ interface BlockedRowProps {
   onToggleComplete: (dayTaskId: string, isCompleted: boolean) => void;
   onDemote: (dayTaskId: string) => void;
   onUnblock: (dayTaskId: string) => void;
+  isReadOnly?: boolean;
 }
 
 export const BlockedRow: React.FC<BlockedRowProps> = ({
@@ -16,6 +17,7 @@ export const BlockedRow: React.FC<BlockedRowProps> = ({
   onToggleComplete,
   onDemote,
   onUnblock,
+  isReadOnly = false,
 }) => {
   const cardDataList: TaskCardData[] = tasks.map((t) => ({
     id: t.day_task_id,
@@ -36,13 +38,19 @@ export const BlockedRow: React.FC<BlockedRowProps> = ({
       count={tasks.length}
       icon={<AlertTriangle className="h-4 w-4" />}
       accentColor="amber"
-      emptyMessage="No blocked tasks. Drag items here to track impediments."
+      isDropDisabled={isReadOnly}
+      emptyMessage={
+        isReadOnly
+          ? 'No blocked tasks were recorded for this day.'
+          : 'No blocked tasks. Drag items here to track impediments.'
+      }
     >
       {cardDataList.map((task, index) => (
         <TaskCard
           key={task.id}
           task={task}
           index={index}
+          isReadOnly={isReadOnly}
           onToggleComplete={onToggleComplete}
           onDemote={onDemote}
           onUnblock={onUnblock}

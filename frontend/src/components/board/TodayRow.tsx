@@ -12,6 +12,7 @@ interface TodayRowProps {
   onAddTask: (title: string) => void;
   isAddingTask?: boolean;
   quickAddRef?: React.RefObject<HTMLInputElement>;
+  isReadOnly?: boolean;
 }
 
 export const TodayRow: React.FC<TodayRowProps> = ({
@@ -21,6 +22,7 @@ export const TodayRow: React.FC<TodayRowProps> = ({
   onAddTask,
   isAddingTask = false,
   quickAddRef,
+  isReadOnly = false,
 }) => {
   const cardDataList: TaskCardData[] = tasks.map((t, idx) => ({
     id: t.day_task_id,
@@ -41,15 +43,22 @@ export const TodayRow: React.FC<TodayRowProps> = ({
       count={tasks.length}
       icon={<Target className="h-4 w-4" />}
       accentColor="sky"
-      emptyMessage="No tasks scheduled for today. Pull from Backlog or quick-add above."
+      isDropDisabled={isReadOnly}
+      emptyMessage={
+        isReadOnly
+          ? 'No tasks were recorded for this day.'
+          : 'No tasks scheduled for today. Pull from Backlog or quick-add above.'
+      }
       headerAction={
-        <QuickAddInput
-          placeholder="Add task to Today... (Enter)"
-          shortcutKey="N"
-          onAdd={onAddTask}
-          isLoading={isAddingTask}
-          inputRef={quickAddRef}
-        />
+        !isReadOnly ? (
+          <QuickAddInput
+            placeholder="Add task to Today... (Enter)"
+            shortcutKey="N"
+            onAdd={onAddTask}
+            isLoading={isAddingTask}
+            inputRef={quickAddRef}
+          />
+        ) : undefined
       }
     >
       {cardDataList.map((task, index) => (
@@ -57,6 +66,7 @@ export const TodayRow: React.FC<TodayRowProps> = ({
           key={task.id}
           task={task}
           index={index}
+          isReadOnly={isReadOnly}
           onToggleComplete={onToggleComplete}
           onDemote={onDemote}
         />

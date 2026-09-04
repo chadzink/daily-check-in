@@ -22,13 +22,25 @@ import { DaySessionActionBar } from './DaySessionActionBar';
 import { MorningCheckInBanner } from './MorningCheckInBanner';
 import { MorningCheckInModal } from '../wizards/MorningCheckInModal';
 import { CheckOutModal } from '../wizards/CheckOutModal';
+import { HistoricalDateBanner } from '../navigation/HistoricalDateBanner';
+import { StandupExportModal } from '../standup/StandupExportModal';
+import { useDateContext } from '../../context/DateContext';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface DailyBoardProps {
   date: string;
+  isReadOnly?: boolean;
 }
 
-export const DailyBoard: React.FC<DailyBoardProps> = ({ date }) => {
+export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
+  let dateContext: ReturnType<typeof useDateContext> | null = null;
+  try {
+    dateContext = useDateContext();
+  } catch {
+    // fallback when rendered outside DateProvider in unit tests
+  }
+  const isHistorical = isReadOnly ?? (dateContext?.isHistorical ?? false);
+
   const { data: daySession, isLoading: sessionLoading, error: sessionError, refetch: refetchSession } =
     useDaySession(date);
   const { data: backlog, isLoading: backlogLoading, error: backlogError, refetch: refetchBacklog } =
@@ -58,11 +70,13 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date }) => {
   // Ritual wizard modals state
   const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
   const [isCheckOutModalOpen, setIsCheckOutModalOpen] = useState(false);
+  const [isStandupModalOpen, setIsStandupModalOpen] = useState(false);
   const [isBannerDismissed, setIsBannerDismissed] = useState(false);
   const hasAutoOpenedRef = useRef(false);
 
-  // Auto-launch Morning Check-In modal if session is not yet checked in
+  // Auto-launch Morning Check-In modal if session is not yet checked in (suppressed for historical dates)
   useEffect(() => {
+    if (isHistorical) return;
     if (
       daySession &&
       daySession.session &&
@@ -72,7 +86,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date }) => {
       hasAutoOpenedRef.current = true;
       setIsCheckInModalOpen(true);
     }
-  }, [daySession]);
+  }, [daySession, isHistorical]);
 
   // Keyboard shortcut refs
   const todayQuickAddRef = useRef<HTMLInputElement>(null);
@@ -110,6 +124,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date }) => {
   }, [backlog, pullBacklogTask]);
 
   const handleDragEnd = (result: DropResult) => {
+    if (isHistorical) return;
     const { destination, source, draggableId } = result;
 
     if (!destination) return;
@@ -266,15 +281,20 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date }) => {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Historical Read-Only Banner */}
+      <HistoricalDateBanner />
+
       {/* Day Session Action Bar */}
       <DaySessionActionBar
         session={daySession?.session}
         onStartCheckIn={() => setIsCheckInModalOpen(true)}
         onStartCheckOut={() => setIsCheckOutModalOpen(true)}
+        onExportStandup={() => setIsStandupModalOpen(true)}
+        isReadOnly={isHistorical}
       />
 
-      {/* Un-checked-in Reminder Banner */}
-      {daySession?.session && !daySession.session.check_in_at && !isBannerDismissed && (
+      {/* Un-checked-in Reminder Banner (suppressed on historical dates) */}
+      {!isHistorical && daySession?.session && !daySession.session.check_in_at && !isBannerDismissed && (
         <MorningCheckInBanner
           onStartCheckIn={() => setIsCheckInModalOpen(true)}
           onDismiss={() => setIsBannerDismissed(true)}
@@ -313,6 +333,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date }) => {
           {/* Row 2: Today */}
           <TodayRow
             tasks={daySession?.tasks?.today || []}
+            isReadOnly={isHistorical}
             onToggleComplete={(dayTaskId, isCompleted) =>
               toggleComplete.mutate({ dayTaskId, isCompleted })
             }
@@ -325,6 +346,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date }) => {
           {/* Row 3: Blocked */}
           <BlockedRow
             tasks={daySession?.tasks?.blocked || []}
+            isReadOnly={isHistorical}
             onToggleComplete={(dayTaskId, isCompleted) =>
               toggleComplete.mutate({ dayTaskId, isCompleted })
             }
@@ -364,6 +386,14 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date }) => {
         onClose={() => setIsCheckOutModalOpen(false)}
         date={date}
         sessionWithTasks={daySession}
+      />
+
+      {/* Standup Export Modal */}
+      <StandupExportModal
+        isOpen={isStandupModalOpen}
+        onClose={() => setIsStandupModalOpen(false)}
+        sessionWithTasks={daySession}
+        dateStr={date}
       />
     </div>
   );

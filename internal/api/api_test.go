@@ -40,6 +40,7 @@ func setupTestEcho(t *testing.T) *echo.Echo {
 	taskService := service.NewTaskService(taskRepo, daySessionRepo, dayTaskRepo)
 	daySessionService := service.NewDaySessionService(daySessionRepo, dayTaskRepo, taskRepo)
 	ritualService := service.NewRitualService(daySessionRepo, dayTaskRepo, taskRepo, daySessionService)
+	calendarService := service.NewCalendarService(daySessionRepo, dayTaskRepo)
 
 	e := echo.New()
 	apiGroup := e.Group("/api")
@@ -56,6 +57,9 @@ func setupTestEcho(t *testing.T) *echo.Echo {
 
 	ritualHandler := api.NewRitualHandler(ritualService)
 	ritualHandler.RegisterRoutes(apiGroup)
+
+	calendarHandler := api.NewCalendarHandler(calendarService)
+	calendarHandler.RegisterRoutes(apiGroup)
 
 	return e
 }
@@ -346,5 +350,37 @@ func TestRitualEndpoints(t *testing.T) {
 	_ = json.Unmarshal(rec.Body.Bytes(), &checkoutResp)
 	assert.NotNil(t, checkoutResp.Session.CheckOutAt)
 	assert.Equal(t, "Evening checkout note", checkoutResp.Session.Notes)
+}
+
+func TestCalendarHandler_GetMonthSummary(t *testing.T) {
+	e := setupTestEcho(t)
+	userID := "api-cal-user-" + uuid.New().String()
+
+	// 1. Missing month parameter -> 400
+	req := httptest.NewRequest(http.MethodGet, "/api/calendar/summary", nil)
+	req.Header.Set("X-User-ID", userID)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+	// 2. Invalid month format -> 400
+	req = httptest.NewRequest(http.MethodGet, "/api/calendar/summary?month=invalid", nil)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+	// 3. Valid month -> 200 OK
+	req = httptest.NewRequest(http.MethodGet, "/api/calendar/summary?month=2026-09", nil)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var calResp model.CalendarSummaryResponse
+	err := json.Unmarshal(rec.Body.Bytes(), &calResp)
+	require.NoError(t, err)
+	assert.Equal(t, "2026-09", calResp.Month)
+	assert.Equal(t, 30, len(calResp.Days))
 }
 
