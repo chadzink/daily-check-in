@@ -26,6 +26,7 @@ interface TaskCardProps {
   task: TaskCardData;
   index: number;
   isDragDisabled?: boolean;
+  isReadOnly?: boolean;
   onToggleComplete?: (dayTaskId: string, isCompleted: boolean) => void;
   onDemote?: (dayTaskId: string) => void;
   onPull?: (taskId: string) => void;
@@ -36,6 +37,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   task,
   index,
   isDragDisabled = false,
+  isReadOnly = false,
   onToggleComplete,
   onDemote,
   onPull,
@@ -76,7 +78,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2.5 flex-1 min-w-0">
           {/* Grab Handle */}
-          {!isYesterday && !isDragDisabled && (
+          {!isYesterday && !isDragDisabled && !isReadOnly && (
             <div
               className="mt-0.5 text-slate-500 hover:text-slate-300 cursor-grab active:cursor-grabbing p-0.5 -ml-1 rounded transition-colors flex-shrink-0"
               title="Drag to reorder or move across rows"
@@ -91,13 +93,13 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               type="button"
               data-testid={`task-checkbox-${task.id}`}
               onClick={() => onToggleComplete && onToggleComplete(task.id, !task.isCompleted)}
-              disabled={isYesterday}
+              disabled={isYesterday || isReadOnly}
               className={`mt-0.5 h-4 w-4 rounded flex items-center justify-center transition-all flex-shrink-0 ${
                 task.isCompleted
                   ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/30 border-emerald-400'
                   : 'border border-slate-600 hover:border-sky-400 bg-slate-800/60'
-              } ${isYesterday ? 'cursor-default opacity-80' : 'cursor-pointer'}`}
-              title={task.isCompleted ? 'Mark incomplete' : 'Mark complete'}
+              } ${isYesterday || isReadOnly ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
+              title={isReadOnly ? 'Read-only mode' : task.isCompleted ? 'Mark incomplete' : 'Mark complete'}
             >
               {task.isCompleted && <Check className="h-3 w-3 stroke-[3]" />}
             </button>
@@ -145,46 +147,48 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center space-x-1 opacity-80 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          {/* Unblock button */}
-          {isBlocked && onUnblock && (
-            <button
-              onClick={() => onUnblock(task.id)}
-              className="p-1 rounded text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-colors"
-              title="Unblock task (Move back to Today)"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-            </button>
-          )}
+        {!isReadOnly && (
+          <div className="flex items-center space-x-1 opacity-80 group-hover:opacity-100 transition-opacity flex-shrink-0">
+            {/* Unblock button */}
+            {isBlocked && onUnblock && (
+              <button
+                onClick={() => onUnblock(task.id)}
+                className="p-1 rounded text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-colors"
+                title="Unblock task (Move back to Today)"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            )}
 
-          {/* Demote to Backlog button */}
-          {(isToday || isBlocked) && onDemote && (
-            <button
-              onClick={() => onDemote(task.id)}
-              className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-              title="Demote back to Global Backlog"
-            >
-              <ArrowDownToLine className="h-3.5 w-3.5" />
-            </button>
-          )}
+            {/* Demote to Backlog button */}
+            {(isToday || isBlocked) && onDemote && (
+              <button
+                onClick={() => onDemote(task.id)}
+                className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                title="Demote back to Global Backlog"
+              >
+                <ArrowDownToLine className="h-3.5 w-3.5" />
+              </button>
+            )}
 
-          {/* Pull into Today button */}
-          {isBacklog && onPull && (
-            <button
-              onClick={() => onPull(task.taskId)}
-              className="px-2 py-1 rounded-md text-[11px] font-semibold text-violet-300 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/30 flex items-center space-x-1 transition-all"
-              title="Pull into Today's execution list"
-            >
-              <ArrowUpToLine className="h-3 w-3" />
-              <span>Pull</span>
-            </button>
-          )}
-        </div>
+            {/* Pull into Today button */}
+            {isBacklog && onPull && (
+              <button
+                onClick={() => onPull(task.taskId)}
+                className="px-2 py-1 rounded-md text-[11px] font-semibold text-violet-300 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/30 flex items-center space-x-1 transition-all"
+                title="Pull into Today's execution list"
+              >
+                <ArrowUpToLine className="h-3 w-3" />
+                <span>Pull</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 
-  if (isYesterday || isDragDisabled) {
+  if (isYesterday || isDragDisabled || isReadOnly) {
     return cardContent(false);
   }
 

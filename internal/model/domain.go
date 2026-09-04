@@ -203,3 +203,19 @@ type StandardErrorResponse struct {
 	Message string `json:"message,omitempty"`
 	Code    string `json:"code,omitempty"`
 }
+
+// DaySummary represents daily session and task metrics for a calendar date
+type DaySummary struct {
+	Date               string `json:"date"` // Format: YYYY-MM-DD
+	HasSession         bool   `json:"has_session"`
+	HasCheckIn         bool   `json:"has_check_in"`
+	HasCheckOut        bool   `json:"has_check_out"`
+	CompletedTaskCount int    `json:"completed_task_count"`
+	TotalTaskCount     int    `json:"total_task_count"`
+}
+
+// CalendarSummaryResponse wraps month-level day summaries
+type CalendarSummaryResponse struct {
+	Month string       `json:"month"` // Format: YYYY-MM
+	Days  []DaySummary `json:"days"`
+}

@@ -1,6 +1,5 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { format } from 'date-fns';
 import { 
   Activity, 
   CheckCircle2, 
@@ -9,16 +8,15 @@ import {
   Server, 
   Database, 
   ShieldCheck, 
-  CalendarDays,
   Layers
 } from 'lucide-react';
 import { fetchHealth } from './api/health';
 import { DailyBoard } from './components/board/DailyBoard';
+import { DateProvider, useDateContext } from './context/DateContext';
+import { CalendarWidget } from './components/calendar/CalendarWidget';
 
-export const App: React.FC = () => {
-  const currentDate = new Date();
-  const formattedDate = format(currentDate, 'EEEE, MMMM d, yyyy');
-  const currentDateISO = format(currentDate, 'yyyy-MM-dd');
+export const AppContent: React.FC = () => {
+  const { selectedDate, isHistorical } = useDateContext();
 
   const { data, error, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['health'],
@@ -40,16 +38,14 @@ export const App: React.FC = () => {
                 DailyCheckIn
               </span>
               <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                Milestone 3
+                Milestone 5
               </span>
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <div className="hidden sm:flex items-center space-x-2 text-xs text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded-md border border-slate-700/50">
-              <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
-              <span>{formattedDate}</span>
-            </div>
+          <div className="flex items-center space-x-3">
+            {/* Top-Navigation Interactive Calendar Widget */}
+            <CalendarWidget />
 
             {/* Health Status Pill */}
             {isLoading ? (
@@ -58,7 +54,7 @@ export const App: React.FC = () => {
                 className="inline-flex items-center space-x-2 text-xs font-medium px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 animate-pulse"
               >
                 <RefreshCw className="h-3.5 w-3.5 animate-spin text-slate-400" />
-                <span>Connecting...</span>
+                <span className="hidden sm:inline">Connecting...</span>
               </div>
             ) : isError ? (
               <div 
@@ -66,7 +62,7 @@ export const App: React.FC = () => {
                 className="inline-flex items-center space-x-2 text-xs font-medium px-3 py-1.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-300"
               >
                 <span className="h-2 w-2 rounded-full bg-rose-500 animate-ping" />
-                <span>Backend Offline</span>
+                <span className="hidden sm:inline">Backend Offline</span>
               </div>
             ) : (
               <div 
@@ -74,7 +70,7 @@ export const App: React.FC = () => {
                 className="inline-flex items-center space-x-2 text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 shadow-sm shadow-emerald-500/10"
               >
                 <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse-subtle" />
-                <span>Backend Connected (v{data?.version})</span>
+                <span className="hidden sm:inline">Backend Connected (v{data?.version})</span>
               </div>
             )}
           </div>
@@ -124,7 +120,7 @@ export const App: React.FC = () => {
           <div>
             <div className="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium mb-1.5">
               <Activity className="h-3.5 w-3.5 text-indigo-400" />
-              <span>Milestone 3 • 4-Row Execution Board</span>
+              <span>Milestone 5 • Temporal Navigation & Standup Ritual</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
               Daily Execution & Standup Ritual
@@ -134,7 +130,7 @@ export const App: React.FC = () => {
 
         {/* 4-Row Daily Execution Board */}
         <section>
-          <DailyBoard date={currentDateISO} />
+          <DailyBoard date={selectedDate} isReadOnly={isHistorical} />
         </section>
 
         {/* System Stack & Connectivity Grid */}
@@ -197,9 +193,17 @@ export const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="border-t border-slate-800/80 py-4 bg-slate-950/80 text-center text-xs text-slate-500">
-        <p>DailyCheckIn • Scrum Execution Rituals • Milestone 3: 4-Row Execution Board</p>
+        <p>DailyCheckIn • Scrum Execution Rituals • Milestone 5: Interactive Calendar & Standup Export</p>
       </footer>
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <DateProvider>
+      <AppContent />
+    </DateProvider>
   );
 };
 
