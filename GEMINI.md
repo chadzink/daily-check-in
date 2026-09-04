@@ -129,5 +129,7 @@ go build -o bin/dailycheckin ./cmd/server
 - [ ] Test log sanitization scripts run with explicit target file paths to guarantee path hygiene without stdin blocking.
 - [ ] Session entity deletion or status mutations defensively support matching by either document ID or referenced master entity ID (`dt.ID == id || dt.TaskID == id`) to guard against silent Firestore deletion failures.
 - [ ] Headless browser automation test scripts specify explicit user data profiles (`--user-data-dir=/tmp/...`) to prevent CDP context collisions on shared debugging ports.
+- [ ] React components consuming domain contexts defensively handle missing providers (`try/catch` fallback or optional fallback props) to preserve unit test isolation.
+- [ ] Frontend test files (`*.test.tsx`) omit unused `import React` to satisfy strict `noUnusedLocals` TypeScript checks (`npm run build`).
 
 
