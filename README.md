@@ -70,7 +70,9 @@ DailyCheckIn/
 │   └── vite.config.ts
 ├── docs/
 │   ├── AGENTS.md                   # Multi-agent squad guide & collaboration workflows
-│   └── SPECIFICATION.md            # Detailed product & technical specification
+│   ├── DEPLOYMENT.md               # Comprehensive Google Cloud Run deployment guide
+│   ├── SPECIFICATION.md            # Detailed product & technical specification
+│   └── WORKFLOWS.md                # Agile squad scrum workflows & lifecycle guide
 ├── docker-compose.yml              # Local Firebase Emulators
 ├── Dockerfile                      # Multi-stage production container build
 ├── Makefile                        # Development and build tasks
@@ -145,12 +147,29 @@ DailyCheckIn/
 ```bash
 make build
 ```
-This builds the frontend assets with Vite and compiles the Go server binary with embedded static files.
+This builds the frontend assets with Vite and compiles the Go server binary with embedded static files (`bin/dailycheckin`, 19MB).
 
 ### Docker Multi-Stage Build
 ```bash
-docker build -t dailycheckin:latest .
+make docker-build
+# Or directly: docker build -t dailycheckin:latest .
 ```
+Compiles a minimal, hardened Alpine production container image (**28.3MB**) running as non-root user `nobody:nobody` with an active `HEALTHCHECK` directive.
+
+### 🚀 Deploying to Google Cloud Run
+
+#### Quickstart: 1-Command Deploy via Cloud Build
+Deploy directly from your terminal using Google Cloud Build and Cloud Run:
+```bash
+gcloud run deploy dailycheckin \
+  --source . \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --set-env-vars APP_ENV=production,GCP_PROJECT_ID=your-project-id
+```
+
+For the complete guide covering initial GCP project setup, Firestore security rules & indexes, Artifact Registry, IAM permissions, custom domains, and automated GitHub Actions CI/CD deployment, see **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
 
 ---
 
