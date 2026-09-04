@@ -65,7 +65,7 @@ build-frontend: ## Build production Vite React SPA bundle (output to frontend/di
 build-backend: ## Compile Go server binary embedding static assets
 	@echo "Compiling Go binary ($(BIN_DIR)/$(BIN_NAME))..."
 	mkdir -p $(BIN_DIR)
-	go build -o $(BIN_DIR)/$(BIN_NAME) ./cmd/server
+	go build -ldflags="-s -w" -o $(BIN_DIR)/$(BIN_NAME) ./cmd/server
 
 build: build-frontend build-backend ## Build single production binary with embedded frontend assets
 	@echo "Build complete: $(BIN_DIR)/$(BIN_NAME)"

@@ -9,7 +9,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Build Go binary embedding the compiled frontend SPA
-FROM golang:alpine AS backend-builder
+FROM golang:1.25-alpine AS backend-builder
 WORKDIR /app
 
 COPY go.mod go.sum ./
@@ -33,6 +33,9 @@ ENV PORT=8080 \
     APP_ENV=production
 
 EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/health || exit 1
 
 USER nobody:nobody
 

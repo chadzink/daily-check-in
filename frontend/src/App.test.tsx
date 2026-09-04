@@ -37,7 +37,7 @@ describe('App Component', () => {
 
     renderWithClient(<App />);
     expect(screen.getByText('DailyCheckIn')).toBeInTheDocument();
-    expect(screen.getByText('Daily Execution & Standup Ritual')).toBeInTheDocument();
+    expect(screen.getByText('Daily Execution & Ritual Platform')).toBeInTheDocument();
   });
 
   it('displays connected status badge when backend health check succeeds', async () => {

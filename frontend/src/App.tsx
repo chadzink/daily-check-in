@@ -38,7 +38,7 @@ export const AppContent: React.FC = () => {
                 DailyCheckIn
               </span>
               <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                Milestone 5
+                Milestone 6
               </span>
             </div>
           </div>
@@ -120,10 +120,10 @@ export const AppContent: React.FC = () => {
           <div>
             <div className="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium mb-1.5">
               <Activity className="h-3.5 w-3.5 text-indigo-400" />
-              <span>Milestone 5 • Temporal Navigation & Standup Ritual</span>
+              <span>Milestone 6 • Single-Binary Packaging & Production Readiness</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-              Daily Execution & Standup Ritual
+              Daily Execution & Ritual Platform
             </h1>
           </div>
         </section>
