@@ -20,6 +20,11 @@ func SetupMiddlewares(e *echo.Echo) {
 	// Panic recovery
 	e.Use(middleware.Recover())
 
+	// HTTP response Gzip compression
+	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{
+		Level: 5,
+	}))
+
 	// CORS configuration allowing local frontend dev ports and API access
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{

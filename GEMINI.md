@@ -131,5 +131,9 @@ go build -o bin/dailycheckin ./cmd/server
 - [ ] Headless browser automation test scripts specify explicit user data profiles (`--user-data-dir=/tmp/...`) to prevent CDP context collisions on shared debugging ports.
 - [ ] React components consuming domain contexts defensively handle missing providers (`try/catch` fallback or optional fallback props) to preserve unit test isolation.
 - [ ] Frontend test files (`*.test.tsx`) omit unused `import React` to satisfy strict `noUnusedLocals` TypeScript checks (`npm run build`).
+- [ ] Container build stages must match or exceed the Go version defined in `go.mod` (Go 1.25+).
+- [ ] Static asset routers and healthcheck endpoints must support both `GET` and `HEAD` requests to ensure compatibility with container health checks and CDN/monitoring probes.
+- [ ] Embedded static file servers must distinguish caching headers: immutable caching (`public, max-age=31536000, immutable`) for hashed `/assets/*` files, and `no-cache` for root `index.html` to prevent stale client bundles.
+
 
 

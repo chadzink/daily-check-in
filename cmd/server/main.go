@@ -51,7 +51,7 @@ func main() {
 
 	// API route registration
 	apiGroup := e.Group("/api")
-	apiGroup.GET("/health", api.HealthCheckHandler)
+	apiGroup.Match([]string{http.MethodGet, http.MethodHead}, "/health", api.HealthCheckHandler)
 
 	// Authenticated API routes
 	authGroup := apiGroup.Group("")
@@ -74,7 +74,7 @@ func main() {
 	calendarHandler.RegisterRoutes(authGroup)
 
 	// Static asset routing (serving embedded frontend SPA)
-	setupStaticRoutes(e, dailycheckin.DistFS())
+	SetupStaticRoutes(e, dailycheckin.DistFS())
 
 	// Resolve server port
 	port := os.Getenv("PORT")
@@ -108,10 +108,11 @@ func main() {
 	e.Logger.Info("Server stopped.")
 }
 
-func setupStaticRoutes(e *echo.Echo, distFS fs.FS) {
+// SetupStaticRoutes wires static asset file server and SPA fallback routing.
+func SetupStaticRoutes(e *echo.Echo, distFS fs.FS) {
 	fileServer := http.FileServer(http.FS(distFS))
 
-	e.GET("/*", func(c echo.Context) error {
+	staticHandler := func(c echo.Context) error {
 		reqPath := c.Request().URL.Path
 
 		// Do not intercept /api routes
@@ -130,6 +131,11 @@ func setupStaticRoutes(e *echo.Echo, distFS fs.FS) {
 			stat, statErr := file.Stat()
 			_ = file.Close()
 			if statErr == nil && !stat.IsDir() {
+				if strings.HasPrefix(cleanPath, "assets/") {
+					c.Response().Header().Set(echo.HeaderCacheControl, "public, max-age=31536000, immutable")
+				} else if cleanPath == "index.html" {
+					c.Response().Header().Set(echo.HeaderCacheControl, "no-cache")
+				}
 				fileServer.ServeHTTP(c.Response(), c.Request())
 				return nil
 			}
@@ -143,8 +149,15 @@ func setupStaticRoutes(e *echo.Echo, distFS fs.FS) {
 		defer indexFile.Close()
 
 		c.Response().Header().Set(echo.HeaderContentType, echo.MIMETextHTMLCharsetUTF8)
+		c.Response().Header().Set(echo.HeaderCacheControl, "no-cache")
 		c.Response().WriteHeader(http.StatusOK)
-		_, err = io.Copy(c.Response(), indexFile)
-		return err
-	})
+		if c.Request().Method != http.MethodHead {
+			_, err = io.Copy(c.Response(), indexFile)
+			return err
+		}
+		return nil
+	}
+
+	e.GET("/*", staticHandler)
+	e.HEAD("/*", staticHandler)
 }
