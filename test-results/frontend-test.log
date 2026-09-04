@@ -5,16 +5,21 @@
 
  RUN  v3.2.7 frontend
 
- ✓ src/components/board/TaskCard.test.tsx (4 tests) 224ms
- ✓ src/components/wizards/CheckOutModal.test.tsx (1 test) 390ms
-   ✓ CheckOutModal Component > renders accomplishment review, accepts reflection notes, and submits check-out  389ms
- ✓ src/App.test.tsx (3 tests) 229ms
- ✓ src/components/wizards/MorningCheckInModal.test.tsx (1 test) 331ms
-   ✓ MorningCheckInModal Component > progresses through 4 ritual steps and submits check-in  330ms
- ✓ src/components/board/DailyBoard.test.tsx (2 tests) 332ms
+ ✓ src/utils/standupGenerator.test.ts (5 tests) 19ms
+ ✓ src/components/standup/StandupExportModal.test.tsx (3 tests) 220ms
+ ✓ src/components/board/TaskCard.test.tsx (4 tests) 325ms
+ ✓ src/components/wizards/CheckOutModal.test.tsx (1 test) 536ms
+   ✓ CheckOutModal Component > renders accomplishment review, accepts reflection notes, and submits check-out  534ms
+ ✓ src/components/navigation/HistoricalDateBanner.test.tsx (1 test) 132ms
+ ✓ src/components/calendar/CalendarWidget.test.tsx (3 tests) 405ms
+ ✓ src/App.test.tsx (3 tests) 378ms
+ ✓ src/components/wizards/MorningCheckInModal.test.tsx (1 test) 624ms
+   ✓ MorningCheckInModal Component > progresses through 4 ritual steps and submits check-in  622ms
+ ✓ src/components/board/DailyBoard.test.tsx (2 tests) 587ms
+   ✓ DailyBoard Component > renders all 4 execution rows: Yesterday, Today, Blocked, and Backlog  345ms
 
- Test Files  5 passed (5)
-      Tests  11 passed (11)
-   Start at  12:39:45
-   Duration  3.78s (transform 930ms, setup 647ms, collect 6.83s, tests 1.51s, environment 2.59s, prepare 752ms)
+ Test Files  9 passed (9)
+      Tests  23 passed (23)
+   Start at  06:46:34
+   Duration  5.46s (transform 1.91s, setup 1.73s, collect 17.82s, tests 3.23s, environment 6.78s, prepare 1.61s)
 
