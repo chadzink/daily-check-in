@@ -326,7 +326,10 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
 
       {/* 4-Row Execution Board Container */}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 items-start">
+        <div
+          data-testid="daily-board-rows"
+          className="flex flex-col gap-5"
+        >
           {/* Row 1: Yesterday */}
           <YesterdayRow tasks={daySession?.tasks?.yesterday || []} />
 

@@ -17,6 +17,8 @@ import (
 	"github.com/chadzink/dailycheckin/internal/middleware"
 	"github.com/chadzink/dailycheckin/internal/repository"
 	"github.com/chadzink/dailycheckin/internal/service"
+	firebase "firebase.google.com/go/v4"
+	firebaseAuth "firebase.google.com/go/v4/auth"
 	"github.com/labstack/echo/v4"
 )
 
@@ -38,6 +40,27 @@ func main() {
 	}
 	defer firestoreClient.Close()
 
+	// Initialize Firebase Auth Client
+	projectID := os.Getenv("FIREBASE_PROJECT_ID")
+	if projectID == "" {
+		projectID = os.Getenv("PROJECT_ID")
+	}
+	if projectID == "" {
+		if os.Getenv("FIREBASE_AUTH_EMULATOR_HOST") != "" {
+			projectID = "dailycheckin-local"
+		} else {
+			projectID = repository.DefaultProjectID
+		}
+	}
+	var authClient *firebaseAuth.Client
+	if fbApp, fbErr := firebase.NewApp(initCtx, &firebase.Config{ProjectID: projectID}); fbErr != nil {
+		e.Logger.Warnf("Failed to initialize Firebase app for auth: %v", fbErr)
+	} else if client, authErr := fbApp.Auth(initCtx); authErr != nil {
+		e.Logger.Warnf("Failed to initialize Firebase Auth client: %v", authErr)
+	} else {
+		authClient = client
+	}
+
 	// Initialize Repositories
 	taskRepo := repository.NewTaskRepository(firestoreClient)
 	daySessionRepo := repository.NewDaySessionRepository(firestoreClient)
@@ -55,7 +78,7 @@ func main() {
 
 	// Authenticated API routes
 	authGroup := apiGroup.Group("")
-	authGroup.Use(middleware.FirebaseAuthMiddleware(nil))
+	authGroup.Use(middleware.FirebaseAuthMiddleware(authClient))
 
 	// Register domain handlers
 	backlogHandler := api.NewBacklogHandler(taskService)

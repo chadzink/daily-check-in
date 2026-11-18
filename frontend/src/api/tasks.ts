@@ -12,25 +12,16 @@ import {
   UpdateDayTaskPayload,
   UpdateTaskPayload,
 } from '../types/domain';
-
-const BASE_URL = '/api';
-
-async function handleResponse<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({}));
-    throw new Error(errorBody.message || errorBody.error || `HTTP error ${res.status}`);
-  }
-  return res.json() as Promise<T>;
-}
+import { authFetch, BASE_URL, handleResponse } from './client';
 
 // Backlog API
 export async function fetchBacklog(): Promise<BacklogResponse> {
-  const res = await fetch(`${BASE_URL}/backlog`);
+  const res = await authFetch(`${BASE_URL}/backlog`);
   return handleResponse<BacklogResponse>(res);
 }
 
 export async function createBacklogTask(payload: CreateTaskPayload): Promise<MasterTask> {
-  const res = await fetch(`${BASE_URL}/backlog/tasks`, {
+  const res = await authFetch(`${BASE_URL}/backlog/tasks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -39,7 +30,7 @@ export async function createBacklogTask(payload: CreateTaskPayload): Promise<Mas
 }
 
 export async function reorderBacklog(orderedTaskIds: string[]): Promise<{ success: boolean }> {
-  const res = await fetch(`${BASE_URL}/backlog/reorder`, {
+  const res = await authFetch(`${BASE_URL}/backlog/reorder`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ordered_task_ids: orderedTaskIds }),
@@ -49,7 +40,7 @@ export async function reorderBacklog(orderedTaskIds: string[]): Promise<{ succes
 
 // Day Sessions API
 export async function fetchDaySession(date: string): Promise<DaySessionWithTasks> {
-  const res = await fetch(`${BASE_URL}/days/${date}`);
+  const res = await authFetch(`${BASE_URL}/days/${date}`);
   return handleResponse<DaySessionWithTasks>(res);
 }
 
@@ -57,7 +48,7 @@ export async function updateDaySession(
   date: string,
   payload: UpdateDaySessionPayload
 ): Promise<DaySession> {
-  const res = await fetch(`${BASE_URL}/days/${date}`, {
+  const res = await authFetch(`${BASE_URL}/days/${date}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -69,7 +60,7 @@ export async function createDayTask(
   date: string,
   payload: CreateDayTaskPayload
 ): Promise<DayTaskWithDetails> {
-  const res = await fetch(`${BASE_URL}/days/${date}/tasks`, {
+  const res = await authFetch(`${BASE_URL}/days/${date}/tasks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -82,7 +73,7 @@ export async function updateDayTask(
   dayTaskId: string,
   payload: UpdateDayTaskPayload
 ): Promise<DayTaskWithDetails> {
-  const res = await fetch(`${BASE_URL}/days/${date}/tasks/${dayTaskId}`, {
+  const res = await authFetch(`${BASE_URL}/days/${date}/tasks/${dayTaskId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -94,7 +85,7 @@ export async function deleteDayTask(
   date: string,
   dayTaskId: string
 ): Promise<{ deleted: boolean }> {
-  const res = await fetch(`${BASE_URL}/days/${date}/tasks/${dayTaskId}`, {
+  const res = await authFetch(`${BASE_URL}/days/${date}/tasks/${dayTaskId}`, {
     method: 'DELETE',
   });
   return handleResponse<{ deleted: boolean }>(res);
@@ -104,7 +95,7 @@ export async function reorderDayTasks(
   date: string,
   orderedDayTaskIds: string[]
 ): Promise<{ success: boolean }> {
-  const res = await fetch(`${BASE_URL}/days/${date}/reorder`, {
+  const res = await authFetch(`${BASE_URL}/days/${date}/reorder`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ordered_day_task_ids: orderedDayTaskIds }),
@@ -116,7 +107,7 @@ export async function pullBacklogTask(
   date: string,
   payload: PullDayTaskPayload
 ): Promise<DayTaskWithDetails> {
-  const res = await fetch(`${BASE_URL}/days/${date}/pull`, {
+  const res = await authFetch(`${BASE_URL}/days/${date}/pull`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -128,7 +119,7 @@ export async function demoteDayTask(
   date: string,
   dayTaskId: string
 ): Promise<{ success: boolean }> {
-  const res = await fetch(`${BASE_URL}/days/${date}/tasks/${dayTaskId}/demote`, {
+  const res = await authFetch(`${BASE_URL}/days/${date}/tasks/${dayTaskId}/demote`, {
     method: 'POST',
   });
   return handleResponse<{ success: boolean }>(res);
@@ -138,7 +129,7 @@ export async function patchDayTask(
   dayTaskId: string,
   payload: UpdateDayTaskPayload
 ): Promise<DayTaskWithDetails> {
-  const res = await fetch(`${BASE_URL}/day-tasks/${dayTaskId}`, {
+  const res = await authFetch(`${BASE_URL}/day-tasks/${dayTaskId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -149,7 +140,7 @@ export async function patchDayTask(
 export async function reorderDayTasksDirect(
   payload: ReorderDayTasksPayload
 ): Promise<{ success: boolean }> {
-  const res = await fetch(`${BASE_URL}/day-tasks/reorder`, {
+  const res = await authFetch(`${BASE_URL}/day-tasks/reorder`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -159,7 +150,7 @@ export async function reorderDayTasksDirect(
 
 // Master Tasks API
 export async function createTask(payload: CreateTaskPayload): Promise<MasterTask> {
-  const res = await fetch(`${BASE_URL}/tasks`, {
+  const res = await authFetch(`${BASE_URL}/tasks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -168,12 +159,12 @@ export async function createTask(payload: CreateTaskPayload): Promise<MasterTask
 }
 
 export async function getTask(id: string): Promise<MasterTask> {
-  const res = await fetch(`${BASE_URL}/tasks/${id}`);
+  const res = await authFetch(`${BASE_URL}/tasks/${id}`);
   return handleResponse<MasterTask>(res);
 }
 
 export async function updateTask(id: string, payload: UpdateTaskPayload): Promise<MasterTask> {
-  const res = await fetch(`${BASE_URL}/tasks/${id}`, {
+  const res = await authFetch(`${BASE_URL}/tasks/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -182,7 +173,7 @@ export async function updateTask(id: string, payload: UpdateTaskPayload): Promis
 }
 
 export async function archiveTask(id: string): Promise<{ archived: boolean }> {
-  const res = await fetch(`${BASE_URL}/tasks/${id}`, {
+  const res = await authFetch(`${BASE_URL}/tasks/${id}`, {
     method: 'DELETE',
   });
   return handleResponse<{ archived: boolean }>(res);
