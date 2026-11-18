@@ -99,10 +99,13 @@ DailyCheckIn/
    cd DailyCheckIn
    ```
 
-2. **Start Firebase Local Emulators:**
+2. **Start Firebase Local Emulators & Seed Demo User:**
    ```bash
    docker compose up -d
    # Or using Firebase CLI: firebase emulators:start
+
+   # Seed the local demo account (demo@dailycheckin.com / Password123!)
+   make seed-demo-user
    ```
 
 3. **Install Frontend Dependencies:**
@@ -135,7 +138,7 @@ DailyCheckIn/
 | `PORT` | HTTP server listening port | `8080` | `8080` |
 | `APP_ENV` | Environment identifier (`development` / `production`) | `development` | `production` |
 | `FIREBASE_PROJECT_ID` | GCP / Firebase project ID | `dailycheckin-local` | `dailycheckin-prod` |
-| `FIRESTORE_EMULATOR_HOST` | Local Firestore emulator endpoint | `localhost:8080` | *Unset* |
+| `FIRESTORE_EMULATOR_HOST` | Local Firestore emulator endpoint | `localhost:8085` | *Unset* |
 | `FIREBASE_AUTH_EMULATOR_HOST` | Local Auth emulator endpoint | `localhost:9099` | *Unset* |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Service account JSON key path | *Unset (emulators)* | Default GCP Service Account |
 
