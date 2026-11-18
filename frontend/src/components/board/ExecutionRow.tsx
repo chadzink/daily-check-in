@@ -56,10 +56,10 @@ export const ExecutionRow: React.FC<ExecutionRowProps> = ({
   return (
     <div
       data-testid={`execution-row-${droppableId.toLowerCase()}`}
-      className="flex flex-col rounded-2xl bg-slate-900/50 border border-slate-800/80 p-4 shadow-xl backdrop-blur-sm transition-all"
+      className="flex flex-col rounded-2xl bg-slate-900/50 border border-slate-800/80 p-4 sm:p-5 shadow-xl backdrop-blur-sm transition-all"
     >
       {/* Row Header */}
-      <div className="flex items-center justify-between mb-3.5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3.5">
         <div className="flex items-center space-x-2.5">
           <div
             className={`h-7 w-7 rounded-lg border flex items-center justify-center ${styles.iconBg}`}
@@ -73,9 +73,10 @@ export const ExecutionRow: React.FC<ExecutionRowProps> = ({
             {count}
           </span>
         </div>
+        {headerAction && (
+          <div className="w-full sm:w-80 md:w-96">{headerAction}</div>
+        )}
       </div>
-
-      {headerAction && <div className="mb-3">{headerAction}</div>}
 
       {/* Droppable Area */}
       <Droppable droppableId={droppableId} isDropDisabled={isDropDisabled}>
@@ -83,12 +84,12 @@ export const ExecutionRow: React.FC<ExecutionRowProps> = ({
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className={`flex-1 min-h-[100px] rounded-xl p-2 transition-all duration-150 ${
+            className={`flex-1 min-h-[76px] rounded-xl p-1.5 sm:p-2 transition-all duration-150 flex flex-col gap-2 ${
               snapshot.isDraggingOver ? `ring-2 ${styles.dropHighlight}` : ''
             }`}
           >
             {count === 0 && !snapshot.isDraggingOver ? (
-              <div className="h-full min-h-[80px] flex items-center justify-center text-center p-4 border border-dashed border-slate-800 rounded-xl">
+              <div className="min-h-[64px] flex items-center justify-center text-center px-4 py-3 border border-dashed border-slate-800 rounded-xl">
                 <p className="text-xs text-slate-500 font-medium">{emptyMessage}</p>
               </div>
             ) : (

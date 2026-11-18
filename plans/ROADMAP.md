@@ -15,12 +15,14 @@ flowchart TD
     M4["Milestone 4: Morning & Evening Ritual Wizards<br>(PLAN-004)"]
     M5["Milestone 5: Interactive Calendar & Standup Export<br>(PLAN-005)"]
     M6["Milestone 6: Single-Binary Packaging & E2E Validation<br>(PLAN-006)"]
+    M7["Milestone 7: Row-Based Board Layout, Health Page & Logout<br>(PLAN-007)"]
 
     M1 --> M2
     M2 --> M3
     M3 --> M4
     M4 --> M5
     M5 --> M6
+    M6 --> M7
 ```
 
 ---
@@ -97,3 +99,14 @@ flowchart TD
   - Automated CI/CD pipeline (`.github/workflows/ci-cd.yml`).
   - Full end-to-end regression test report archived in `test-reports/QA-REPORT-006-final-validation-2026-09-04.md`.
 - **Sign-Off:** Standalone single executable and container verified running with 100% test pass rate. Status: **COMPLETE / SIGNED OFF**.
+
+---
+
+### 🎨 Milestone 7: Row-Based Board Layout, Dedicated Health Page & Logout (PLAN-007)
+- **Focus:** Production UI polish, row-based execution board layout, separation of system diagnostics, and session authentication controls.
+- **Features:**
+  - Switch **Yesterday**, **Today**, **Blocked**, and **Backlog** from columns to stacked full-width horizontal rows.
+  - Remove development stage markers (e.g., `Milestone 5`, `Milestone 6` badges and footer labels).
+  - Move backend, Firestore, and authentication status indicators to a System Health popup modal opened from a footer link on the main board.
+  - Add `AuthContext`, Login view, and header **Logout** button so users can sign out and re-authenticate.
+- **Sign-Off:** Vitest unit tests, `go test ./...`, strict TypeScript build, live Firebase JWT verification, and QA report in `test-reports/QA-REPORT-007-row-layout-health-and-logout-2026-11-18.md`. Status: **READY FOR SIGN-OFF (Browser E2E pending Chrome remote debugging)**.

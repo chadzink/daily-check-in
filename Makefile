@@ -11,7 +11,7 @@ IMAGE_NAME ?= dailycheckin:latest
 BIN_DIR ?= bin
 BIN_NAME ?= dailycheckin
 
-.PHONY: all help dev dev-backend dev-frontend build build-frontend build-backend test test-backend test-frontend emulators emulators-down clean deps docker-build
+.PHONY: all help dev dev-backend dev-frontend build build-frontend build-backend test test-backend test-frontend emulators emulators-down seed-demo-user clean deps docker-build
 
 all: help
 
@@ -34,6 +34,19 @@ emulators: ## Start Firebase Local Emulators in background via Docker Compose
 emulators-down: ## Stop Firebase Local Emulators
 	@echo "Stopping Firebase Local Emulators..."
 	docker compose down
+
+seed-demo-user: ## Idempotently create demo@dailycheckin.com in Firebase Auth Emulator
+	@echo "Seeding demo@dailycheckin.com in Firebase Auth Emulator ($(FIREBASE_AUTH_EMULATOR_HOST))..."
+	@curl -s -o /dev/null -w "%{http_code}" -X POST \
+		"http://$(FIREBASE_AUTH_EMULATOR_HOST)/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key" \
+		-H "Content-Type: application/json" \
+		-d '{"email":"demo@dailycheckin.com","password":"Password123!","returnSecureToken":true}' \
+		| grep -qE "^(200|400)$$"
+	@curl -sf -X POST \
+		"http://$(FIREBASE_AUTH_EMULATOR_HOST)/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key" \
+		-H "Content-Type: application/json" \
+		-d '{"email":"demo@dailycheckin.com","password":"Password123!","returnSecureToken":true}' >/dev/null
+	@echo "Verified demo@dailycheckin.com can sign in on $(FIREBASE_AUTH_EMULATOR_HOST)."
 
 dev: ## Run full-stack development (Go backend + Vite dev server concurrently)
 	@echo "Starting DailyCheckIn full-stack development..."
