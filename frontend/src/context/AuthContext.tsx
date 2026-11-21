@@ -30,9 +30,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setIsLoading(false);
+      if (!firebaseUser) {
+        queryClient.clear();
+      }
     });
     return unsubscribe;
-  }, []);
+  }, [queryClient]);
 
   const login = useCallback(async (email: string, password: string) => {
     const credential = await signInWithEmailAndPassword(auth, email, password);
