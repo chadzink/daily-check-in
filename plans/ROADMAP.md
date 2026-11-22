@@ -18,6 +18,7 @@ flowchart TD
     M7["Milestone 7: Row-Based Board Layout, Health Page & Logout<br>(PLAN-007)"]
     M8["Fix 8: Stale Firebase Refresh Token Recovery<br>(PLAN-008)"]
     M9["Fix 9: Portable GCP IaC & GitHub CI/CD<br>(PLAN-009)"]
+    M10["Fix 10: Production Firestore Client ADC<br>(PLAN-010)"]
 
     M1 --> M2
     M2 --> M3
@@ -27,6 +28,7 @@ flowchart TD
     M6 --> M7
     M7 --> M8
     M8 --> M9
+    M9 --> M10
 ```
 
 ---
@@ -135,3 +137,13 @@ flowchart TD
   - `Dockerfile` `VITE_FIREBASE_*` build-arg support and `.github/workflows/ci-cd.yml` (`test` $\rightarrow$ `docker-package` $\rightarrow$ `deploy`).
   - Updated `docs/DEPLOYMENT.md` and `test-reports/QA-REPORT-009-gcp-iac-and-github-cicd-2026-11-21.md`.
 - **Sign-Off:** Local pre-flight checks passed (`bash -n`, `go vet`, `go build`, `vitest`, `tsc && vite build`); ready for user GCP bootstrap & merge to `main`.
+
+---
+
+### 🛠️ Fix 10: Production Firestore Client Initialization (PLAN-010)
+- **Focus:** Ensure Cloud Run production connects to Google Cloud Firestore via Application Default Credentials instead of falling back to `localhost:8085`.
+- **Deliverables:**
+  - `internal/repository/firestore.go` (`resolveFirestoreConfig` & `NewFirestoreClient` production ADC fix).
+  - `internal/repository/firestore_test.go` unit tests for production, local dev, and explicit emulator configurations.
+  - Updated `docs/DEPLOYMENT.md` and `test-reports/QA-REPORT-010-firestore-production-client-2026-11-22.md`.
+- **Sign-Off:** **Implemented & Verified**.

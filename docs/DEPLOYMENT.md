@@ -123,10 +123,10 @@ Copy the hostname **without `https://`** (e.g. `dailycheckin-xxxx-uc.a.run.app`)
 | Variable | Description | Production Setting |
 | :--- | :--- | :--- |
 | `PORT` | Listening port for Echo server | Automatically set by Cloud Run (`8080`) |
-| `APP_ENV` | Application environment | `production` |
+| `APP_ENV` | Application environment | `production` (disables local `localhost:8085` Firestore emulator fallback and uses Cloud Run ADC) |
 | `FIREBASE_PROJECT_ID` | Project ID for Firestore & Firebase Auth SDKs | Set to `$GCP_PROJECT_ID` by CI/CD & Terraform |
 | `VITE_FIREBASE_API_KEY` | Public Firebase Web App API key | Passed as Docker `--build-arg` at Vite build time |
 | `VITE_FIREBASE_AUTH_DOMAIN` | Firebase Auth domain | Passed as Docker `--build-arg` at Vite build time |
 | `VITE_FIREBASE_PROJECT_ID` | Firebase Project ID for client SDK | Passed as Docker `--build-arg` at Vite build time |
-| `FIRESTORE_EMULATOR_HOST` | Local emulator override | **Must be unset** in production |
+| `FIRESTORE_EMULATOR_HOST` | Local emulator override | **Must be unset** in production (otherwise forces emulator mode) |
 | `FIREBASE_AUTH_EMULATOR_HOST` | Local emulator override | **Must be unset** in production |
