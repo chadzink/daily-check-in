@@ -1,17 +1,20 @@
 import React from 'react';
-import { Draggable } from '@hello-pangea/dnd';
 import {
-  GripVertical,
   Check,
   AlertCircle,
   ArrowDownToLine,
   ArrowUpToLine,
   RotateCcw,
+  ChevronUp,
+  ChevronDown,
+  ShieldAlert,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { DayStatus } from '../../types/domain';
 
 export interface TaskCardData {
-  id: string; // Draggable ID (day_task_id or task_id for backlog)
+  id: string; // day_task_id or task_id for backlog
   taskId: string; // Underlying master task ID
   title: string;
   description?: string;
@@ -25,28 +28,39 @@ export interface TaskCardData {
 interface TaskCardProps {
   task: TaskCardData;
   index: number;
-  isDragDisabled?: boolean;
+  totalCount?: number;
   isReadOnly?: boolean;
   onToggleComplete?: (dayTaskId: string, isCompleted: boolean) => void;
   onDemote?: (dayTaskId: string) => void;
   onPull?: (taskId: string) => void;
   onUnblock?: (dayTaskId: string) => void;
+  onBlock?: (dayTaskId: string, title: string) => void;
+  onMoveUp?: (index: number) => void;
+  onMoveDown?: (index: number) => void;
+  onEdit?: (task: TaskCardData) => void;
+  onDelete?: (task: TaskCardData) => void;
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({
   task,
   index,
-  isDragDisabled = false,
+  totalCount = 1,
   isReadOnly = false,
   onToggleComplete,
   onDemote,
   onPull,
   onUnblock,
+  onBlock,
+  onMoveUp,
+  onMoveDown,
+  onEdit,
+  onDelete,
 }) => {
   const isYesterday = task.status === 'YESTERDAY';
   const isToday = task.status === 'TODAY';
   const isBlocked = task.status === 'BLOCKED';
   const isBacklog = task.status === 'BACKLOG';
+  const canMutate = !isReadOnly && !isYesterday;
 
   const formatTimestamp = (isoString?: string | null) => {
     if (!isoString) return '';
@@ -58,13 +72,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     }
   };
 
-  const cardContent = (isDragging: boolean) => (
+  return (
     <div
       data-testid={`task-card-${task.id}`}
-      className={`group relative flex flex-col p-3.5 rounded-xl border transition-all duration-200 select-none ${
-        isDragging
-          ? 'bg-slate-850 border-sky-500/80 shadow-2xl shadow-sky-500/20 rotate-2 scale-[1.02] z-50 ring-2 ring-sky-500/40'
-          : task.isCompleted
+      className={`group relative flex flex-col p-3.5 rounded-xl border transition-all duration-200 ${
+        task.isCompleted
           ? 'bg-slate-900/40 border-slate-800/60 opacity-70 hover:opacity-100'
           : isBlocked
           ? 'bg-slate-900/80 border-amber-500/30 hover:border-amber-500/50'
@@ -77,13 +89,31 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2.5 flex-1 min-w-0">
-          {/* Grab Handle */}
-          {!isYesterday && !isDragDisabled && !isReadOnly && (
-            <div
-              className="mt-0.5 text-slate-500 hover:text-slate-300 cursor-grab active:cursor-grabbing p-0.5 -ml-1 rounded transition-colors flex-shrink-0"
-              title="Drag to reorder or move across rows"
-            >
-              <GripVertical className="h-4 w-4" />
+          {/* Up / Down Reorder Arrows */}
+          {canMutate && (onMoveUp || onMoveDown) && (
+            <div className="flex flex-col -my-0.5 flex-shrink-0">
+              <button
+                type="button"
+                data-testid={`task-move-up-${task.id}`}
+                onClick={() => onMoveUp?.(index)}
+                disabled={index === 0 || !onMoveUp}
+                className="p-0.5 rounded text-slate-500 hover:text-slate-200 hover:bg-slate-800 disabled:opacity-25 disabled:pointer-events-none transition-colors"
+                title="Move task up"
+                aria-label="Move task up"
+              >
+                <ChevronUp className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                data-testid={`task-move-down-${task.id}`}
+                onClick={() => onMoveDown?.(index)}
+                disabled={index >= totalCount - 1 || !onMoveDown}
+                className="p-0.5 rounded text-slate-500 hover:text-slate-200 hover:bg-slate-800 disabled:opacity-25 disabled:pointer-events-none transition-colors"
+                title="Move task down"
+                aria-label="Move task down"
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
             </div>
           )}
 
@@ -147,14 +177,31 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </div>
 
         {/* Action Buttons */}
-        {!isReadOnly && (
-          <div className="flex items-center space-x-1 opacity-80 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        {canMutate && (
+          <div className="flex items-center space-x-1 opacity-85 group-hover:opacity-100 transition-opacity flex-shrink-0">
+            {/* Mark as Blocked button (Today only) */}
+            {isToday && onBlock && (
+              <button
+                type="button"
+                data-testid={`task-block-${task.id}`}
+                onClick={() => onBlock(task.id, task.title)}
+                className="p-1 rounded text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                title="Mark as blocked"
+                aria-label="Mark task as blocked"
+              >
+                <ShieldAlert className="h-3.5 w-3.5" />
+              </button>
+            )}
+
             {/* Unblock button */}
             {isBlocked && onUnblock && (
               <button
+                type="button"
+                data-testid={`task-unblock-${task.id}`}
                 onClick={() => onUnblock(task.id)}
                 className="p-1 rounded text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-colors"
                 title="Unblock task (Move back to Today)"
+                aria-label="Unblock task"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
               </button>
@@ -163,9 +210,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             {/* Demote to Backlog button */}
             {(isToday || isBlocked) && onDemote && (
               <button
+                type="button"
+                data-testid={`task-demote-${task.id}`}
                 onClick={() => onDemote(task.id)}
                 className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
                 title="Demote back to Global Backlog"
+                aria-label="Demote to Backlog"
               >
                 <ArrowDownToLine className="h-3.5 w-3.5" />
               </button>
@@ -174,6 +224,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             {/* Pull into Today button */}
             {isBacklog && onPull && (
               <button
+                type="button"
+                data-testid={`task-pull-${task.id}`}
                 onClick={() => onPull(task.taskId)}
                 className="px-2 py-1 rounded-md text-[11px] font-semibold text-violet-300 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/30 flex items-center space-x-1 transition-all"
                 title="Pull into Today's execution list"
@@ -182,28 +234,37 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                 <span>Pull</span>
               </button>
             )}
+
+            {/* Edit button */}
+            {onEdit && (
+              <button
+                type="button"
+                data-testid={`task-edit-${task.id}`}
+                onClick={() => onEdit(task)}
+                className="p-1 rounded text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 transition-colors"
+                title="Edit task"
+                aria-label="Edit task"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
+
+            {/* Delete button */}
+            {onDelete && (
+              <button
+                type="button"
+                data-testid={`task-delete-${task.id}`}
+                onClick={() => onDelete(task)}
+                className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                title="Delete task"
+                aria-label="Delete task"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         )}
       </div>
     </div>
-  );
-
-  if (isYesterday || isDragDisabled || isReadOnly) {
-    return cardContent(false);
-  }
-
-  return (
-    <Draggable draggableId={task.id} index={index}>
-      {(provided, snapshot) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          className="mb-2"
-        >
-          {cardContent(snapshot.isDragging)}
-        </div>
-      )}
-    </Draggable>
   );
 };

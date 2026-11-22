@@ -28,14 +28,14 @@ export const YesterdayRow: React.FC<YesterdayRowProps> = ({ tasks }) => {
       icon={<CheckCircle2 className="h-4 w-4" />}
       accentColor="emerald"
       emptyMessage="No accomplishments recorded from previous active day."
-      isDropDisabled={true}
     >
       {cardDataList.map((task, index) => (
         <TaskCard
           key={task.id}
           task={task}
           index={index}
-          isDragDisabled={true}
+          totalCount={cardDataList.length}
+          isReadOnly={true}
         />
       ))}
     </ExecutionRow>

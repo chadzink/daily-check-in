@@ -9,7 +9,13 @@ interface TodayRowProps {
   tasks: DayTaskWithDetails[];
   onToggleComplete: (dayTaskId: string, isCompleted: boolean) => void;
   onDemote: (dayTaskId: string) => void;
+  onBlock: (dayTaskId: string, title: string) => void;
+  onMoveUp: (index: number) => void;
+  onMoveDown: (index: number) => void;
+  onEdit: (task: TaskCardData) => void;
+  onDelete: (task: TaskCardData) => void;
   onAddTask: (title: string) => void;
+  onOpenDetailedAdd?: () => void;
   isAddingTask?: boolean;
   quickAddRef?: React.RefObject<HTMLInputElement>;
   isReadOnly?: boolean;
@@ -19,7 +25,13 @@ export const TodayRow: React.FC<TodayRowProps> = ({
   tasks,
   onToggleComplete,
   onDemote,
+  onBlock,
+  onMoveUp,
+  onMoveDown,
+  onEdit,
+  onDelete,
   onAddTask,
+  onOpenDetailedAdd,
   isAddingTask = false,
   quickAddRef,
   isReadOnly = false,
@@ -43,7 +55,6 @@ export const TodayRow: React.FC<TodayRowProps> = ({
       count={tasks.length}
       icon={<Target className="h-4 w-4" />}
       accentColor="sky"
-      isDropDisabled={isReadOnly}
       emptyMessage={
         isReadOnly
           ? 'No tasks were recorded for this day.'
@@ -55,6 +66,7 @@ export const TodayRow: React.FC<TodayRowProps> = ({
             placeholder="Add task to Today... (Enter)"
             shortcutKey="N"
             onAdd={onAddTask}
+            onOpenDetailedAdd={onOpenDetailedAdd}
             isLoading={isAddingTask}
             inputRef={quickAddRef}
           />
@@ -66,9 +78,15 @@ export const TodayRow: React.FC<TodayRowProps> = ({
           key={task.id}
           task={task}
           index={index}
+          totalCount={cardDataList.length}
           isReadOnly={isReadOnly}
           onToggleComplete={onToggleComplete}
           onDemote={onDemote}
+          onBlock={onBlock}
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+          onEdit={onEdit}
+          onDelete={onDelete}
         />
       ))}
     </ExecutionRow>

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import {
   useDaySession,
   useBacklog,
@@ -12,12 +11,17 @@ import {
   useCreateTodayTask,
   useCreateBacklogTask,
   useReorderBacklog,
+  useUpdateTask,
+  useArchiveTask,
 } from '../../hooks/useBoard';
 import { YesterdayRow } from './YesterdayRow';
 import { TodayRow } from './TodayRow';
 import { BlockedRow } from './BlockedRow';
 import { BacklogRow } from './BacklogRow';
+import { TaskCardData } from './TaskCard';
 import { BlockerReasonModal } from './BlockerReasonModal';
+import { EditTaskModal } from './EditTaskModal';
+import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { DaySessionActionBar } from './DaySessionActionBar';
 import { MorningCheckInBanner } from './MorningCheckInBanner';
 import { MorningCheckInModal } from '../wizards/MorningCheckInModal';
@@ -55,6 +59,8 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
   const createTodayTask = useCreateTodayTask(date);
   const createBacklogTask = useCreateBacklogTask();
   const reorderBacklog = useReorderBacklog();
+  const updateTaskMutation = useUpdateTask(date);
+  const archiveTaskMutation = useArchiveTask(date);
 
   // Blocker modal state
   const [blockerModalState, setBlockerModalState] = useState<{
@@ -66,6 +72,11 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
     dayTaskId: '',
     taskTitle: '',
   });
+
+  // Edit, Create & Delete modal state
+  const [editingTask, setEditingTask] = useState<TaskCardData | null>(null);
+  const [detailedAddTarget, setDetailedAddTarget] = useState<'TODAY' | 'BLOCKED' | 'BACKLOG' | null>(null);
+  const [deletingTask, setDeletingTask] = useState<TaskCardData | null>(null);
 
   // Ritual wizard modals state
   const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
@@ -123,97 +134,43 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [backlog, pullBacklogTask]);
 
-  const handleDragEnd = (result: DropResult) => {
+  const swapAdjacent = <T,>(items: T[], index: number, direction: -1 | 1): T[] | null => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= items.length) return null;
+    const next = [...items];
+    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+    return next;
+  };
+
+  const handleMoveDayTask = (status: 'TODAY' | 'BLOCKED', index: number, direction: -1 | 1) => {
+    if (isHistorical || !daySession) return;
+    const list = status === 'TODAY' ? daySession.tasks.today : daySession.tasks.blocked;
+    const reordered = swapAdjacent(list, index, direction);
+    if (!reordered) return;
+    reorderDayTasks.mutate({
+      status,
+      orderedDayTaskIds: reordered.map((t) => t.day_task_id),
+    });
+  };
+
+  const handleMoveBacklogTask = (
+    uncommittedTasks: NonNullable<typeof backlog>['tasks'],
+    index: number,
+    direction: -1 | 1
+  ) => {
     if (isHistorical) return;
-    const { destination, source, draggableId } = result;
+    const reordered = swapAdjacent(uncommittedTasks, index, direction);
+    if (!reordered) return;
+    reorderBacklog.mutate(reordered.map((t) => t.id));
+  };
 
-    if (!destination) return;
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
-      return;
-    }
-
-    const sourceDroppable = source.droppableId;
-    const destDroppable = destination.droppableId;
-
-    // 1. Intra-row reordering in TODAY
-    if (sourceDroppable === 'TODAY' && destDroppable === 'TODAY') {
-      if (!daySession) return;
-      const currentList = [...daySession.tasks.today];
-      const [movedItem] = currentList.splice(source.index, 1);
-      currentList.splice(destination.index, 0, movedItem);
-
-      reorderDayTasks.mutate({
-        status: 'TODAY',
-        orderedDayTaskIds: currentList.map((t) => t.day_task_id),
-      });
-      return;
-    }
-
-    // 2. Intra-row reordering in BLOCKED
-    if (sourceDroppable === 'BLOCKED' && destDroppable === 'BLOCKED') {
-      if (!daySession) return;
-      const currentList = [...daySession.tasks.blocked];
-      const [movedItem] = currentList.splice(source.index, 1);
-      currentList.splice(destination.index, 0, movedItem);
-
-      reorderDayTasks.mutate({
-        status: 'BLOCKED',
-        orderedDayTaskIds: currentList.map((t) => t.day_task_id),
-      });
-      return;
-    }
-
-    // 3. Intra-row reordering in BACKLOG
-    if (sourceDroppable === 'BACKLOG' && destDroppable === 'BACKLOG') {
-      if (!backlog) return;
-      const currentList = [...backlog.tasks];
-      const [movedItem] = currentList.splice(source.index, 1);
-      currentList.splice(destination.index, 0, movedItem);
-
-      reorderBacklog.mutate(currentList.map((t) => t.id));
-      return;
-    }
-
-    // 4. TODAY -> BLOCKED (Triggers Blocker Reason Modal)
-    if (sourceDroppable === 'TODAY' && destDroppable === 'BLOCKED') {
-      const item = daySession?.tasks.today.find((t) => t.day_task_id === draggableId);
-      if (item) {
-        setBlockerModalState({
-          isOpen: true,
-          dayTaskId: item.day_task_id,
-          taskTitle: item.title,
-        });
-      }
-      return;
-    }
-
-    // 5. BLOCKED -> TODAY (Unblocks)
-    if (sourceDroppable === 'BLOCKED' && destDroppable === 'TODAY') {
-      unblockTask.mutate({ dayTaskId: draggableId });
-      return;
-    }
-
-    // 6. BACKLOG -> TODAY (Pulls from backlog)
-    if (sourceDroppable === 'BACKLOG' && destDroppable === 'TODAY') {
-      pullBacklogTask.mutate({
-        taskId: draggableId,
-        status: 'TODAY',
-        priorityOrder: destination.index + 1,
-      });
-      return;
-    }
-
-    // 7. TODAY or BLOCKED -> BACKLOG (Demotes to backlog)
-    if (
-      (sourceDroppable === 'TODAY' || sourceDroppable === 'BLOCKED') &&
-      destDroppable === 'BACKLOG'
-    ) {
-      demoteDayTask.mutate({ dayTaskId: draggableId });
-      return;
-    }
+  const handleOpenBlockerModal = (dayTaskId: string, taskTitle: string) => {
+    if (isHistorical) return;
+    setBlockerModalState({
+      isOpen: true,
+      dayTaskId,
+      taskTitle,
+    });
   };
 
   const handleConfirmBlocker = (reason: string) => {
@@ -228,6 +185,37 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
 
   const handleCancelBlocker = () => {
     setBlockerModalState({ isOpen: false, dayTaskId: '', taskTitle: '' });
+  };
+
+  const handleConfirmEdit = (title: string, description: string) => {
+    if (!editingTask) return;
+    updateTaskMutation.mutate(
+      { taskId: editingTask.taskId, title, description },
+      { onSuccess: () => setEditingTask(null) }
+    );
+  };
+
+  const handleConfirmDetailedAdd = (title: string, description: string) => {
+    if (!detailedAddTarget) return;
+    if (detailedAddTarget === 'BACKLOG') {
+      createBacklogTask.mutate(
+        { title, description: description || undefined },
+        { onSuccess: () => setDetailedAddTarget(null) }
+      );
+      return;
+    }
+    createTodayTask.mutate(
+      { title, description: description || undefined, status: detailedAddTarget },
+      { onSuccess: () => setDetailedAddTarget(null) }
+    );
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deletingTask) return;
+    archiveTaskMutation.mutate(
+      { taskId: deletingTask.taskId },
+      { onSuccess: () => setDeletingTask(null) }
+    );
   };
 
   const isError = !!sessionError || !!backlogError;
@@ -325,48 +313,64 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
       </div>
 
       {/* 4-Row Execution Board Container */}
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div
-          data-testid="daily-board-rows"
-          className="flex flex-col gap-5"
-        >
-          {/* Row 1: Yesterday */}
-          <YesterdayRow tasks={daySession?.tasks?.yesterday || []} />
+      <div
+        data-testid="daily-board-rows"
+        className="flex flex-col gap-5"
+      >
+        {/* Row 1: Yesterday */}
+        <YesterdayRow tasks={daySession?.tasks?.yesterday || []} />
 
-          {/* Row 2: Today */}
-          <TodayRow
-            tasks={daySession?.tasks?.today || []}
-            isReadOnly={isHistorical}
-            onToggleComplete={(dayTaskId, isCompleted) =>
-              toggleComplete.mutate({ dayTaskId, isCompleted })
-            }
-            onDemote={(dayTaskId) => demoteDayTask.mutate({ dayTaskId })}
-            onAddTask={(title) => createTodayTask.mutate({ title })}
-            isAddingTask={createTodayTask.isPending}
-            quickAddRef={todayQuickAddRef}
-          />
+        {/* Row 2: Today */}
+        <TodayRow
+          tasks={daySession?.tasks?.today || []}
+          isReadOnly={isHistorical}
+          onToggleComplete={(dayTaskId, isCompleted) =>
+            toggleComplete.mutate({ dayTaskId, isCompleted })
+          }
+          onDemote={(dayTaskId) => demoteDayTask.mutate({ dayTaskId })}
+          onBlock={handleOpenBlockerModal}
+          onMoveUp={(index) => handleMoveDayTask('TODAY', index, -1)}
+          onMoveDown={(index) => handleMoveDayTask('TODAY', index, 1)}
+          onEdit={(task) => setEditingTask(task)}
+          onDelete={(task) => setDeletingTask(task)}
+          onAddTask={(title) => createTodayTask.mutate({ title, status: 'TODAY' })}
+          onOpenDetailedAdd={() => setDetailedAddTarget('TODAY')}
+          isAddingTask={createTodayTask.isPending}
+          quickAddRef={todayQuickAddRef}
+        />
 
-          {/* Row 3: Blocked */}
-          <BlockedRow
-            tasks={daySession?.tasks?.blocked || []}
-            isReadOnly={isHistorical}
-            onToggleComplete={(dayTaskId, isCompleted) =>
-              toggleComplete.mutate({ dayTaskId, isCompleted })
-            }
-            onDemote={(dayTaskId) => demoteDayTask.mutate({ dayTaskId })}
-            onUnblock={(dayTaskId) => unblockTask.mutate({ dayTaskId })}
-          />
+        {/* Row 3: Blocked */}
+        <BlockedRow
+          tasks={daySession?.tasks?.blocked || []}
+          isReadOnly={isHistorical}
+          onToggleComplete={(dayTaskId, isCompleted) =>
+            toggleComplete.mutate({ dayTaskId, isCompleted })
+          }
+          onDemote={(dayTaskId) => demoteDayTask.mutate({ dayTaskId })}
+          onUnblock={(dayTaskId) => unblockTask.mutate({ dayTaskId })}
+          onMoveUp={(index) => handleMoveDayTask('BLOCKED', index, -1)}
+          onMoveDown={(index) => handleMoveDayTask('BLOCKED', index, 1)}
+          onEdit={(task) => setEditingTask(task)}
+          onDelete={(task) => setDeletingTask(task)}
+          onAddTask={(title) => createTodayTask.mutate({ title, status: 'BLOCKED' })}
+          onOpenDetailedAdd={() => setDetailedAddTarget('BLOCKED')}
+          isAddingTask={createTodayTask.isPending}
+        />
 
-          {/* Row 4: Backlog */}
-          <BacklogRow
-            tasks={uncommittedBacklogTasks}
-            onPull={(taskId) => pullBacklogTask.mutate({ taskId, status: 'TODAY' })}
-            onAddTask={(title) => createBacklogTask.mutate({ title })}
-            isAddingTask={createBacklogTask.isPending}
-            quickAddRef={backlogQuickAddRef}
-          />
-        </div>
-      </DragDropContext>
+        {/* Row 4: Backlog */}
+        <BacklogRow
+          tasks={uncommittedBacklogTasks}
+          onPull={(taskId) => pullBacklogTask.mutate({ taskId, status: 'TODAY' })}
+          onMoveUp={(index) => handleMoveBacklogTask(uncommittedBacklogTasks, index, -1)}
+          onMoveDown={(index) => handleMoveBacklogTask(uncommittedBacklogTasks, index, 1)}
+          onEdit={(task) => setEditingTask(task)}
+          onDelete={(task) => setDeletingTask(task)}
+          onAddTask={(title) => createBacklogTask.mutate({ title })}
+          onOpenDetailedAdd={() => setDetailedAddTarget('BACKLOG')}
+          isAddingTask={createBacklogTask.isPending}
+          quickAddRef={backlogQuickAddRef}
+        />
+      </div>
 
       {/* Blocker Reason Modal */}
       <BlockerReasonModal
@@ -374,6 +378,44 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
         taskTitle={blockerModalState.taskTitle}
         onConfirm={handleConfirmBlocker}
         onCancel={handleCancelBlocker}
+      />
+
+      {/* Edit Task Modal */}
+      <EditTaskModal
+        isOpen={!!editingTask}
+        mode="edit"
+        initialTitle={editingTask?.title ?? ''}
+        initialDescription={editingTask?.description ?? ''}
+        onConfirm={handleConfirmEdit}
+        onCancel={() => setEditingTask(null)}
+        isSaving={updateTaskMutation.isPending}
+      />
+
+      {/* Detailed Add Task Modal */}
+      <EditTaskModal
+        isOpen={!!detailedAddTarget}
+        mode="create"
+        targetLabel={
+          detailedAddTarget === 'TODAY'
+            ? 'Today'
+            : detailedAddTarget === 'BLOCKED'
+            ? 'Blocked'
+            : 'Backlog'
+        }
+        initialTitle=""
+        initialDescription=""
+        onConfirm={handleConfirmDetailedAdd}
+        onCancel={() => setDetailedAddTarget(null)}
+        isSaving={createTodayTask.isPending || createBacklogTask.isPending}
+      />
+
+      {/* Delete Task Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={!!deletingTask}
+        taskTitle={deletingTask?.title ?? ''}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeletingTask(null)}
+        isDeleting={archiveTaskMutation.isPending}
       />
 
       {/* Morning Check-In Wizard Modal */}

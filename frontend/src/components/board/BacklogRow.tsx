@@ -8,7 +8,12 @@ import { MasterTask } from '../../types/domain';
 interface BacklogRowProps {
   tasks: MasterTask[];
   onPull: (taskId: string) => void;
+  onMoveUp: (index: number) => void;
+  onMoveDown: (index: number) => void;
+  onEdit: (task: TaskCardData) => void;
+  onDelete: (task: TaskCardData) => void;
   onAddTask: (title: string) => void;
+  onOpenDetailedAdd?: () => void;
   isAddingTask?: boolean;
   quickAddRef?: React.RefObject<HTMLInputElement>;
 }
@@ -16,7 +21,12 @@ interface BacklogRowProps {
 export const BacklogRow: React.FC<BacklogRowProps> = ({
   tasks,
   onPull,
+  onMoveUp,
+  onMoveDown,
+  onEdit,
+  onDelete,
   onAddTask,
+  onOpenDetailedAdd,
   isAddingTask = false,
   quickAddRef,
 }) => {
@@ -44,6 +54,7 @@ export const BacklogRow: React.FC<BacklogRowProps> = ({
           placeholder="Add task to Backlog... (Enter)"
           shortcutKey="B"
           onAdd={onAddTask}
+          onOpenDetailedAdd={onOpenDetailedAdd}
           isLoading={isAddingTask}
           inputRef={quickAddRef}
         />
@@ -54,7 +65,12 @@ export const BacklogRow: React.FC<BacklogRowProps> = ({
           key={task.id}
           task={task}
           index={index}
+          totalCount={cardDataList.length}
           onPull={onPull}
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+          onEdit={onEdit}
+          onDelete={onDelete}
         />
       ))}
     </ExecutionRow>
