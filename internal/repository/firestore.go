@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	DefaultProjectID     = "dailycheckin-dev"
-	DefaultEmulatorHost  = "localhost:8085"
+	DefaultProjectID    = "dailycheckin-dev"
+	DefaultEmulatorHost = "localhost:8085"
 )
 
 // NewFirestoreClient initializes a Google Cloud Firestore client.

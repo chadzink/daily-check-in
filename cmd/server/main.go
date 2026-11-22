@@ -12,13 +12,13 @@ import (
 	"syscall"
 	"time"
 
+	firebase "firebase.google.com/go/v4"
+	firebaseAuth "firebase.google.com/go/v4/auth"
 	"github.com/chadzink/dailycheckin"
 	"github.com/chadzink/dailycheckin/internal/api"
 	"github.com/chadzink/dailycheckin/internal/middleware"
 	"github.com/chadzink/dailycheckin/internal/repository"
 	"github.com/chadzink/dailycheckin/internal/service"
-	firebase "firebase.google.com/go/v4"
-	firebaseAuth "firebase.google.com/go/v4/auth"
 	"github.com/labstack/echo/v4"
 )
 
