@@ -147,3 +147,13 @@ flowchart TD
   - `internal/repository/firestore_test.go` unit tests for production, local dev, and explicit emulator configurations.
   - Updated `docs/DEPLOYMENT.md` and `test-reports/QA-REPORT-010-firestore-production-client-2026-11-22.md`.
 - **Sign-Off:** **Implemented & Verified**.
+
+---
+
+### 🧩 Milestone / Batch 11: User Feedback Fixes & Board UX (PLAN-011)
+- **Focus:** Fix Firestore `day_tasks.id` collection-group index error on task completion, add task Edit/Delete UI, replace drag-and-drop with Up/Down arrow reordering, and add a "Mark as Blocked" icon button on Today tasks.
+- **Deliverables:**
+  - `firestore.indexes.json` (`fieldOverrides` for `day_tasks.id` `COLLECTION_GROUP`).
+  - `internal/service/day_session_service.go` (exclude archived tasks from active `TODAY`/`BLOCKED` rows).
+  - `frontend/src/components/board/` (`TaskCard.tsx`, `EditTaskModal.tsx`, `DailyBoard.tsx`, row components) & `frontend/src/hooks/useBoard.ts`.
+- **Sign-Off:** **Implemented & QA Verified (Pending Merge Sign-Off)**.

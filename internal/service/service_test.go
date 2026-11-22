@@ -192,3 +192,29 @@ func TestDaySessionService_PullDemotePatchReorder(t *testing.T) {
 	assert.Len(t, sessionAfterDemote.Tasks.Today, 1)
 	assert.Equal(t, pulled1.ID, sessionAfterDemote.Tasks.Today[0].DayTaskID)
 }
+
+func TestGetDaySessionExcludesArchivedTasks(t *testing.T) {
+	taskSvc, daySessionSvc := setupServices(t)
+	ctx := context.Background()
+	userID := "svc-user-" + uuid.New().String()
+	date := "2026-09-02"
+
+	statusToday := model.StatusToday
+	task, err := taskSvc.CreateTask(ctx, userID, model.CreateTaskRequest{
+		Title:      "Task to archive",
+		TargetDate: date,
+		Status:     &statusToday,
+	})
+	require.NoError(t, err)
+
+	beforeArchive, err := daySessionSvc.GetDaySessionWithTasks(ctx, userID, date)
+	require.NoError(t, err)
+	require.Len(t, beforeArchive.Tasks.Today, 1)
+
+	err = taskSvc.ArchiveTask(ctx, userID, task.ID)
+	require.NoError(t, err)
+
+	afterArchive, err := daySessionSvc.GetDaySessionWithTasks(ctx, userID, date)
+	require.NoError(t, err)
+	assert.Empty(t, afterArchive.Tasks.Today)
+}

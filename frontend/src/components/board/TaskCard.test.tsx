@@ -21,7 +21,7 @@ describe('TaskCard Component', () => {
       <TaskCard
         task={task}
         index={0}
-        isDragDisabled={true}
+        totalCount={1}
         onToggleComplete={onToggleMock}
       />
     );
@@ -33,6 +33,83 @@ describe('TaskCard Component', () => {
     const checkbox = screen.getByTestId('task-checkbox-dt-1');
     await user.click(checkbox);
     expect(onToggleMock).toHaveBeenCalledWith('dt-1', true);
+  });
+
+  it('renders up/down arrows with boundary disabled states and triggers reorder callbacks', async () => {
+    const onMoveUp = vi.fn();
+    const onMoveDown = vi.fn();
+    const task: TaskCardData = {
+      id: 'dt-mid',
+      taskId: 't-mid',
+      title: 'Middle Task',
+      status: 'TODAY',
+      isCompleted: false,
+      priorityOrder: 2,
+    };
+
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <TaskCard
+        task={task}
+        index={0}
+        totalCount={2}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+      />
+    );
+
+    expect(screen.getByTestId('task-move-up-dt-mid')).toBeDisabled();
+    expect(screen.getByTestId('task-move-down-dt-mid')).not.toBeDisabled();
+    await user.click(screen.getByTestId('task-move-down-dt-mid'));
+    expect(onMoveDown).toHaveBeenCalledWith(0);
+
+    rerender(
+      <TaskCard
+        task={task}
+        index={1}
+        totalCount={2}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+      />
+    );
+    expect(screen.getByTestId('task-move-up-dt-mid')).not.toBeDisabled();
+    expect(screen.getByTestId('task-move-down-dt-mid')).toBeDisabled();
+    await user.click(screen.getByTestId('task-move-up-dt-mid'));
+    expect(onMoveUp).toHaveBeenCalledWith(1);
+  });
+
+  it('renders Mark as Blocked, Edit, and Delete buttons for Today tasks', async () => {
+    const onBlock = vi.fn();
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
+    const task: TaskCardData = {
+      id: 'dt-today',
+      taskId: 't-today',
+      title: 'Actionable Task',
+      status: 'TODAY',
+      isCompleted: false,
+    };
+
+    const user = userEvent.setup();
+    render(
+      <TaskCard
+        task={task}
+        index={0}
+        totalCount={1}
+        onBlock={onBlock}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
+    );
+
+    await user.click(screen.getByTestId('task-block-dt-today'));
+    expect(onBlock).toHaveBeenCalledWith('dt-today', 'Actionable Task');
+
+    await user.click(screen.getByTestId('task-edit-dt-today'));
+    expect(onEdit).toHaveBeenCalledWith(task);
+
+    await user.click(screen.getByTestId('task-delete-dt-today'));
+    expect(onDelete).toHaveBeenCalledWith(task);
   });
 
   it('renders Blocked task with blocker reason chip and allows unblocking', async () => {
@@ -51,7 +128,7 @@ describe('TaskCard Component', () => {
       <TaskCard
         task={task}
         index={0}
-        isDragDisabled={true}
+        totalCount={1}
         onUnblock={onUnblockMock}
       />
     );
@@ -79,7 +156,7 @@ describe('TaskCard Component', () => {
       <TaskCard
         task={task}
         index={0}
-        isDragDisabled={true}
+        totalCount={1}
         onPull={onPullMock}
       />
     );
@@ -104,7 +181,7 @@ describe('TaskCard Component', () => {
       <TaskCard
         task={task}
         index={0}
-        isDragDisabled={true}
+        totalCount={1}
       />
     );
 

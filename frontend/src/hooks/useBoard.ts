@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchBacklog,
   fetchDaySession,
-  patchDayTask,
+  updateDayTask,
+  updateTask,
+  archiveTask,
   pullBacklogTask,
   demoteDayTask,
   reorderDayTasksDirect,
@@ -43,7 +45,7 @@ export function useToggleTaskCompletion(date: string) {
 
   return useMutation({
     mutationFn: ({ dayTaskId, isCompleted }: { dayTaskId: string; isCompleted: boolean }) =>
-      patchDayTask(dayTaskId, { is_completed: isCompleted }),
+      updateDayTask(date, dayTaskId, { is_completed: isCompleted }),
     onMutate: async ({ dayTaskId, isCompleted }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.daySession(date) });
 
@@ -279,7 +281,7 @@ export function useMoveTaskToBlocked(date: string) {
       dayTaskId: string;
       blockerReason: string;
     }) =>
-      patchDayTask(dayTaskId, {
+      updateDayTask(date, dayTaskId, {
         status: 'BLOCKED',
         blocker_reason: blockerReason,
       }),
@@ -324,7 +326,7 @@ export function useUnblockTask(date: string) {
 
   return useMutation({
     mutationFn: ({ dayTaskId }: { dayTaskId: string }) =>
-      patchDayTask(dayTaskId, {
+      updateDayTask(date, dayTaskId, {
         status: 'TODAY',
         blocker_reason: null,
       }),
@@ -369,12 +371,20 @@ export function useCreateTodayTask(date: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ title, description }: { title: string; description?: string }) =>
+    mutationFn: ({
+      title,
+      description,
+      status = 'TODAY',
+    }: {
+      title: string;
+      description?: string;
+      status?: DayStatus;
+    }) =>
       createTask({
         title,
         description,
         target_date: date,
-        status: 'TODAY',
+        status,
       }),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.daySession(date) });
@@ -424,6 +434,114 @@ export function useReorderBacklog() {
       }
     },
     onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.backlog() });
+    },
+  });
+}
+
+export function useUpdateTask(date: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      taskId,
+      title,
+      description,
+    }: {
+      taskId: string;
+      title: string;
+      description?: string;
+    }) => updateTask(taskId, { title, description }),
+    onMutate: async ({ taskId, title, description }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.daySession(date) });
+      await queryClient.cancelQueries({ queryKey: queryKeys.backlog() });
+
+      const prevSession = queryClient.getQueryData<DaySessionWithTasks>(queryKeys.daySession(date));
+      const prevBacklog = queryClient.getQueryData<BacklogResponse>(queryKeys.backlog());
+
+      if (prevSession) {
+        const updateList = (list: DayTaskWithDetails[]) =>
+          list.map((t) =>
+            t.task_id === taskId
+              ? { ...t, title, description: description ?? t.description }
+              : t
+          );
+        queryClient.setQueryData<DaySessionWithTasks>(queryKeys.daySession(date), {
+          ...prevSession,
+          tasks: {
+            ...prevSession.tasks,
+            today: updateList(prevSession.tasks.today),
+            blocked: updateList(prevSession.tasks.blocked),
+          },
+        });
+      }
+
+      if (prevBacklog) {
+        queryClient.setQueryData<BacklogResponse>(queryKeys.backlog(), {
+          tasks: prevBacklog.tasks.map((t) =>
+            t.id === taskId ? { ...t, title, description: description ?? t.description } : t
+          ),
+        });
+      }
+
+      return { prevSession, prevBacklog };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.prevSession) {
+        queryClient.setQueryData(queryKeys.daySession(date), context.prevSession);
+      }
+      if (context?.prevBacklog) {
+        queryClient.setQueryData(queryKeys.backlog(), context.prevBacklog);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.daySession(date) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.backlog() });
+    },
+  });
+}
+
+export function useArchiveTask(date: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ taskId }: { taskId: string }) => archiveTask(taskId),
+    onMutate: async ({ taskId }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.daySession(date) });
+      await queryClient.cancelQueries({ queryKey: queryKeys.backlog() });
+
+      const prevSession = queryClient.getQueryData<DaySessionWithTasks>(queryKeys.daySession(date));
+      const prevBacklog = queryClient.getQueryData<BacklogResponse>(queryKeys.backlog());
+
+      if (prevSession) {
+        queryClient.setQueryData<DaySessionWithTasks>(queryKeys.daySession(date), {
+          ...prevSession,
+          tasks: {
+            ...prevSession.tasks,
+            today: prevSession.tasks.today.filter((t) => t.task_id !== taskId),
+            blocked: prevSession.tasks.blocked.filter((t) => t.task_id !== taskId),
+          },
+        });
+      }
+
+      if (prevBacklog) {
+        queryClient.setQueryData<BacklogResponse>(queryKeys.backlog(), {
+          tasks: prevBacklog.tasks.filter((t) => t.id !== taskId),
+        });
+      }
+
+      return { prevSession, prevBacklog };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.prevSession) {
+        queryClient.setQueryData(queryKeys.daySession(date), context.prevSession);
+      }
+      if (context?.prevBacklog) {
+        queryClient.setQueryData(queryKeys.backlog(), context.prevBacklog);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.daySession(date) });
       queryClient.invalidateQueries({ queryKey: queryKeys.backlog() });
     },
   });

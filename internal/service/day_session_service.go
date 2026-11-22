@@ -88,6 +88,9 @@ func (s *daySessionService) GetDaySessionWithTasks(ctx context.Context, userID, 
 	for _, dt := range dayTasks {
 		var title, description string
 		if masterTask, ok := tasksMap[dt.TaskID]; ok {
+			if masterTask.IsArchived && dt.Status != model.StatusYesterday {
+				continue
+			}
 			title = masterTask.Title
 			description = masterTask.Description
 		}

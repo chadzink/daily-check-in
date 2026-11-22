@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { ExecutionRow } from './ExecutionRow';
 import { TaskCard, TaskCardData } from './TaskCard';
+import { QuickAddInput } from './QuickAddInput';
 import { DayTaskWithDetails } from '../../types/domain';
 
 interface BlockedRowProps {
@@ -9,6 +10,13 @@ interface BlockedRowProps {
   onToggleComplete: (dayTaskId: string, isCompleted: boolean) => void;
   onDemote: (dayTaskId: string) => void;
   onUnblock: (dayTaskId: string) => void;
+  onMoveUp: (index: number) => void;
+  onMoveDown: (index: number) => void;
+  onEdit: (task: TaskCardData) => void;
+  onDelete: (task: TaskCardData) => void;
+  onAddTask?: (title: string) => void;
+  onOpenDetailedAdd?: () => void;
+  isAddingTask?: boolean;
   isReadOnly?: boolean;
 }
 
@@ -17,6 +25,13 @@ export const BlockedRow: React.FC<BlockedRowProps> = ({
   onToggleComplete,
   onDemote,
   onUnblock,
+  onMoveUp,
+  onMoveDown,
+  onEdit,
+  onDelete,
+  onAddTask,
+  onOpenDetailedAdd,
+  isAddingTask = false,
   isReadOnly = false,
 }) => {
   const cardDataList: TaskCardData[] = tasks.map((t) => ({
@@ -38,11 +53,20 @@ export const BlockedRow: React.FC<BlockedRowProps> = ({
       count={tasks.length}
       icon={<AlertTriangle className="h-4 w-4" />}
       accentColor="amber"
-      isDropDisabled={isReadOnly}
       emptyMessage={
         isReadOnly
           ? 'No blocked tasks were recorded for this day.'
-          : 'No blocked tasks. Drag items here to track impediments.'
+          : 'No blocked tasks. Use the block icon on a Today task to track impediments.'
+      }
+      headerAction={
+        !isReadOnly && onAddTask ? (
+          <QuickAddInput
+            placeholder="Add blocked task... (Enter)"
+            onAdd={onAddTask}
+            onOpenDetailedAdd={onOpenDetailedAdd}
+            isLoading={isAddingTask}
+          />
+        ) : undefined
       }
     >
       {cardDataList.map((task, index) => (
@@ -50,10 +74,15 @@ export const BlockedRow: React.FC<BlockedRowProps> = ({
           key={task.id}
           task={task}
           index={index}
+          totalCount={cardDataList.length}
           isReadOnly={isReadOnly}
           onToggleComplete={onToggleComplete}
           onDemote={onDemote}
           onUnblock={onUnblock}
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+          onEdit={onEdit}
+          onDelete={onDelete}
         />
       ))}
     </ExecutionRow>

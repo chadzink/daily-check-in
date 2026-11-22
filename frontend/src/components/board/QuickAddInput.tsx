@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, FilePlus2 } from 'lucide-react';
 
 interface QuickAddInputProps {
   placeholder?: string;
   shortcutKey?: string;
   onAdd: (title: string) => void;
+  onOpenDetailedAdd?: () => void;
   isLoading?: boolean;
   autoFocus?: boolean;
   inputRef?: React.RefObject<HTMLInputElement>;
@@ -14,6 +15,7 @@ export const QuickAddInput: React.FC<QuickAddInputProps> = ({
   placeholder = 'Add a task...',
   shortcutKey,
   onAdd,
+  onOpenDetailedAdd,
   isLoading = false,
   autoFocus = false,
   inputRef: externalRef,
@@ -65,6 +67,20 @@ export const QuickAddInput: React.FC<QuickAddInputProps> = ({
       >
         <Plus className="h-4 w-4" />
       </button>
+
+      {onOpenDetailedAdd && (
+        <button
+          type="button"
+          onClick={onOpenDetailedAdd}
+          disabled={isLoading}
+          className="ml-1.5 h-8 px-2.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 hover:text-white border border-slate-700/80 flex items-center space-x-1 text-xs font-medium transition-all disabled:opacity-40 disabled:pointer-events-none flex-shrink-0 shadow-sm"
+          title="Add task with description"
+          aria-label="Detailed add task"
+        >
+          <FilePlus2 className="h-3.5 w-3.5 text-sky-400" />
+          <span className="hidden md:inline">Details</span>
+        </button>
+      )}
     </form>
   );
 };

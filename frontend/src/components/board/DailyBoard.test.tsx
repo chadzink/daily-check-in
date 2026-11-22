@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
@@ -116,7 +116,7 @@ describe('DailyBoard Component', () => {
     const patchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        id: 'dt-t1',
+        day_task_id: 'dt-t1',
         is_completed: true,
       }),
     });
@@ -124,7 +124,7 @@ describe('DailyBoard Component', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
-        if (opts?.method === 'PATCH' && url.includes('/api/day-tasks/')) {
+        if (opts?.method === 'PATCH' && url.includes(`/api/days/${mockDate}/tasks/`)) {
           return patchMock();
         }
         if (url.includes('/api/days/')) {
@@ -173,6 +173,193 @@ describe('DailyBoard Component', () => {
     // Should call patch endpoint
     await waitFor(() => {
       expect(patchMock).toHaveBeenCalled();
+    });
+  });
+
+  it('supports editing, deleting, blocking via icon, and arrow reordering', async () => {
+    const patchTaskMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 't-t1', title: 'Updated Title', description: 'Updated Desc' }),
+    });
+    const deleteTaskMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ archived: true }),
+    });
+    const blockDayTaskMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ day_task_id: 'dt-t2', status: 'BLOCKED', blocker_reason: 'API down' }),
+    });
+    const reorderMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+        if (opts?.method === 'PATCH' && url.includes('/api/tasks/t-t1')) {
+          return patchTaskMock();
+        }
+        if (opts?.method === 'DELETE' && url.includes('/api/tasks/t-t1')) {
+          return deleteTaskMock();
+        }
+        if (opts?.method === 'PATCH' && url.includes(`/api/days/${mockDate}/tasks/dt-t2`)) {
+          return blockDayTaskMock();
+        }
+        if (opts?.method === 'PUT' && url.includes('/api/day-tasks/reorder')) {
+          return reorderMock();
+        }
+        if (url.includes('/api/days/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              session: { id: 's-1', user_id: 'u-1', date: mockDate, notes: '', check_in_at: '2026-08-31T09:00:00Z' },
+              tasks: {
+                yesterday: [],
+                today: [
+                  {
+                    day_task_id: 'dt-t1',
+                    task_id: 't-t1',
+                    title: 'First Today Task',
+                    description: 'Old Desc',
+                    status: 'TODAY',
+                    is_completed: false,
+                    priority_order: 1,
+                  },
+                  {
+                    day_task_id: 'dt-t2',
+                    task_id: 't-t2',
+                    title: 'Second Today Task',
+                    description: '',
+                    status: 'TODAY',
+                    is_completed: false,
+                    priority_order: 2,
+                  },
+                ],
+                blocked: [],
+              },
+            }),
+          });
+        }
+        if (url.includes('/api/backlog')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ tasks: [] }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      })
+    );
+
+    const user = userEvent.setup();
+    renderWithClient(<DailyBoard date={mockDate} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('First Today Task')).toBeInTheDocument();
+      expect(screen.getByText('Second Today Task')).toBeInTheDocument();
+    });
+
+    // 1. Reorder down on first task
+    await user.click(screen.getByTestId('task-move-down-dt-t1'));
+    await waitFor(() => {
+      expect(reorderMock).toHaveBeenCalled();
+    });
+
+    // 2. Edit first task
+    await user.click(screen.getByTestId('task-edit-dt-t1'));
+    const titleInput = screen.getByLabelText(/Title/i);
+    await user.clear(titleInput);
+    await user.type(titleInput, 'Updated Title');
+    await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+    await waitFor(() => {
+      expect(patchTaskMock).toHaveBeenCalled();
+    });
+
+    // 3. Block second task via icon
+    await user.click(screen.getByTestId('task-block-dt-t2'));
+    const reasonInput = screen.getByLabelText(/Blocker Reason/i);
+    await user.type(reasonInput, 'API down');
+    await user.click(screen.getByRole('button', { name: /Confirm Blocker/i }));
+    await waitFor(() => {
+      expect(blockDayTaskMock).toHaveBeenCalled();
+    });
+
+    // 4. Delete first task via modal confirmation
+    await user.click(screen.getByTestId('task-delete-dt-t1'));
+    const dialog = screen.getByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: /Delete Task/i }));
+    await waitFor(() => {
+      expect(deleteTaskMock).toHaveBeenCalled();
+    });
+  });
+
+  it('supports detailed add modal with title and description on Today and Blocked rows', async () => {
+    const createTaskMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 't-new', title: 'Detailed Task', description: 'More context' }),
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+        if (opts?.method === 'POST' && url.endsWith('/api/tasks')) {
+          return createTaskMock(JSON.parse(String(opts.body)));
+        }
+        if (url.includes('/api/days/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              session: { id: 's-1', user_id: 'u-1', date: mockDate, notes: '', check_in_at: '2026-08-31T09:00:00Z' },
+              tasks: { yesterday: [], today: [], blocked: [] },
+            }),
+          });
+        }
+        if (url.includes('/api/backlog')) {
+          return Promise.resolve({ ok: true, json: async () => ({ tasks: [] }) });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      })
+    );
+
+    const user = userEvent.setup();
+    renderWithClient(<DailyBoard date={mockDate} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('execution-row-today')).toBeInTheDocument();
+      expect(screen.getByTestId('execution-row-blocked')).toBeInTheDocument();
+    });
+
+    const todayRow = screen.getByTestId('execution-row-today');
+    await user.click(within(todayRow).getByRole('button', { name: /Detailed add task/i }));
+
+    const modal = screen.getByRole('dialog');
+    await user.type(within(modal).getByLabelText(/Title/i), 'Detailed Today Task');
+    await user.type(within(modal).getByLabelText(/Description/i), 'Detailed notes');
+    await user.click(within(modal).getByRole('button', { name: /Add Task/i }));
+
+    await waitFor(() => {
+      expect(createTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Detailed Today Task',
+          description: 'Detailed notes',
+          status: 'TODAY',
+        })
+      );
+    });
+
+    const blockedRow = screen.getByTestId('execution-row-blocked');
+    await user.click(within(blockedRow).getByRole('button', { name: /Detailed add task/i }));
+    const blockedModal = screen.getByRole('dialog');
+    await user.type(within(blockedModal).getByLabelText(/Title/i), 'Detailed Blocked Task');
+    await user.click(within(blockedModal).getByRole('button', { name: /Add Task/i }));
+
+    await waitFor(() => {
+      expect(createTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Detailed Blocked Task',
+          status: 'BLOCKED',
+        })
+      );
     });
   });
 });
