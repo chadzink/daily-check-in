@@ -117,7 +117,9 @@ jobs:
 
       - name: Test Container Health Check & Startup
         run: |
-          docker run -d --name test-container -p 8080:8080 ${{ env.IMAGE_NAME }}:latest
+          docker run -d --name test-container -p 8080:8080 \
+            -e FIRESTORE_EMULATOR_HOST=localhost:8085 \
+            ${{ env.IMAGE_NAME }}:latest
           sleep 4
           curl -f http://localhost:8080/api/health || (docker logs test-container && exit 1)
           docker stop test-container
