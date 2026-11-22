@@ -16,6 +16,8 @@ flowchart TD
     M5["Milestone 5: Interactive Calendar & Standup Export<br>(PLAN-005)"]
     M6["Milestone 6: Single-Binary Packaging & E2E Validation<br>(PLAN-006)"]
     M7["Milestone 7: Row-Based Board Layout, Health Page & Logout<br>(PLAN-007)"]
+    M8["Fix 8: Stale Firebase Refresh Token Recovery<br>(PLAN-008)"]
+    M9["Fix 9: Portable GCP IaC & GitHub CI/CD<br>(PLAN-009)"]
 
     M1 --> M2
     M2 --> M3
@@ -23,6 +25,8 @@ flowchart TD
     M4 --> M5
     M5 --> M6
     M6 --> M7
+    M7 --> M8
+    M8 --> M9
 ```
 
 ---
@@ -110,3 +114,24 @@ flowchart TD
   - Move backend, Firestore, and authentication status indicators to a System Health popup modal opened from a footer link on the main board.
   - Add `AuthContext`, Login view, and header **Logout** button so users can sign out and re-authenticate.
 - **Sign-Off:** Vitest unit tests, `go test ./...`, strict TypeScript build, live Firebase JWT verification, and QA report in `test-reports/QA-REPORT-007-row-layout-health-and-logout-2026-11-18.md`. Status: **READY FOR SIGN-OFF (Browser E2E pending Chrome remote debugging)**.
+
+---
+
+### 🔐 Fix 8: Stale Firebase Refresh Token Recovery (PLAN-008)
+- **Focus:** Automatic recovery from `auth/invalid-refresh-token` and stale IndexedDB sessions.
+- **Deliverables:**
+  - `authFetch` invalid-token detection & automatic `signOut(auth)` in `frontend/src/api/client.ts`.
+  - `queryClient.clear()` on sign-out in `frontend/src/context/AuthContext.tsx`.
+  - Unit tests in `frontend/src/api/client.test.ts` and QA report in `test-reports/QA-REPORT-008-auth-invalid-refresh-token-recovery-2026-11-21.md`.
+- **Sign-Off:** **COMPLETE / SIGNED OFF**.
+
+---
+
+### ☁️ Fix 9: Portable GCP IaC (Terraform) & GitHub CI/CD Setup (PLAN-009)
+- **Focus:** Clone-to-deploy Google Cloud infrastructure as code with Always-Free Tier defaults, GCS remote state, and keyless GitHub Actions CI/CD for `production`.
+- **Deliverables:**
+  - `infra/terraform/` modules (APIs, Artifact Registry with cleanup policy, Firestore Native, Firebase Web App & Email/Password Auth, Cloud Run v2 scale-to-zero, Workload Identity Federation for GitHub OIDC).
+  - `scripts/bootstrap-gcp.sh` and `scripts/configure-github-env.sh`.
+  - `Dockerfile` `VITE_FIREBASE_*` build-arg support and `.github/workflows/ci-cd.yml` (`test` $\rightarrow$ `docker-package` $\rightarrow$ `deploy`).
+  - Updated `docs/DEPLOYMENT.md` and `test-reports/QA-REPORT-009-gcp-iac-and-github-cicd-2026-11-21.md`.
+- **Sign-Off:** Local pre-flight checks passed (`bash -n`, `go vet`, `go build`, `vitest`, `tsc && vite build`); ready for user GCP bootstrap & merge to `main`.
