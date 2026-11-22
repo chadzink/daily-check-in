@@ -1,0 +1,6 @@
+# Copy to production.tfvars (gitignored) and fill in your values.
+project_id        = "your-gcp-project-id"
+region            = "us-central1"
+environment       = "production"
+github_repository = "your-github-username/DailyCheckIn"
+service_name      = "dailycheckin"
