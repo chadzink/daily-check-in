@@ -383,4 +383,3 @@ func TestCalendarHandler_GetMonthSummary(t *testing.T) {
 	assert.Equal(t, "2026-09", calResp.Month)
 	assert.Equal(t, 30, len(calResp.Days))
 }
-

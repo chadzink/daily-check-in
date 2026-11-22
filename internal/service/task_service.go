@@ -22,9 +22,9 @@ type TaskService interface {
 }
 
 type taskService struct {
-	taskRepo     repository.TaskRepository
+	taskRepo       repository.TaskRepository
 	daySessionRepo repository.DaySessionRepository
-	dayTaskRepo  repository.DayTaskRepository
+	dayTaskRepo    repository.DayTaskRepository
 }
 
 // NewTaskService constructs a new TaskService

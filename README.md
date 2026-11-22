@@ -36,8 +36,10 @@ A personal morning ritual and daily execution tool designed for technology and k
 - **Icons & Utilities:** `lucide-react`, `date-fns`
 
 ### Infrastructure & DevOps
-- **Hosting / Compute:** Google Cloud Run (Serverless container runtime)
-- **Database:** Google Cloud Firestore
+- **Hosting / Compute:** Google Cloud Run (Serverless container runtime, Free-Tier defaults)
+- **Database & Auth:** Google Cloud Firestore & Firebase Authentication
+- **Infrastructure as Code (IaC):** Terraform (`infra/terraform/`) with GCS remote state
+- **CI/CD:** GitHub Actions (Keyless Workload Identity Federation OIDC for `production`)
 - **Local Dev:** Firebase Local Emulator Suite (Firestore & Auth)
 - **Containerization:** Multi-stage Dockerfile (Vite build $\rightarrow$ Go build $\rightarrow$ Scratch/Alpine runtime)
 
@@ -70,9 +72,14 @@ DailyCheckIn/
 │   └── vite.config.ts
 ├── docs/
 │   ├── AGENTS.md                   # Multi-agent squad guide & collaboration workflows
-│   ├── DEPLOYMENT.md               # Comprehensive Google Cloud Run deployment guide
+│   ├── DEPLOYMENT.md               # Portable Terraform, GitHub & Cloud Run deployment guide
 │   ├── SPECIFICATION.md            # Detailed product & technical specification
 │   └── WORKFLOWS.md                # Agile squad scrum workflows & lifecycle guide
+├── infra/
+│   └── terraform/                  # Portable GCP IaC (Cloud Run, Firestore, Firebase, WIF)
+├── scripts/
+│   ├── bootstrap-gcp.sh            # Idempotent GCP project & GCS remote state bootstrap
+│   └── configure-github-env.sh     # Automated GitHub Environment setup from Terraform outputs
 ├── docker-compose.yml              # Local Firebase Emulators
 ├── Dockerfile                      # Multi-stage production container build
 ├── Makefile                        # Development and build tasks
@@ -161,6 +168,13 @@ Compiles a minimal, hardened Alpine production container image (**28.3MB**) runn
 
 ### 🚀 Deploying to Google Cloud Run
 
+#### Recommended: Terraform IaC + Keyless GitHub Actions (`production`)
+Anyone cloning this repository can bootstrap a GCP project (with **Always-Free Tier** defaults), GCS remote state, Firebase Auth, and keyless GitHub Actions OIDC deployments:
+
+1. Run `scripts/bootstrap-gcp.sh` to create the GCP project and GCS state bucket.
+2. Provision infrastructure with `terraform init` & `terraform apply` in `infra/terraform/`.
+3. Configure the `production` GitHub Environment with `scripts/configure-github-env.sh`.
+
 #### Quickstart: 1-Command Deploy via Cloud Build
 Deploy directly from your terminal using Google Cloud Build and Cloud Run:
 ```bash
@@ -169,10 +183,10 @@ gcloud run deploy dailycheckin \
   --region us-central1 \
   --platform managed \
   --allow-unauthenticated \
-  --set-env-vars APP_ENV=production,GCP_PROJECT_ID=your-project-id
+  --set-env-vars APP_ENV=production,FIREBASE_PROJECT_ID=your-project-id
 ```
 
-For the complete guide covering initial GCP project setup, Firestore security rules & indexes, Artifact Registry, IAM permissions, custom domains, and automated GitHub Actions CI/CD deployment, see **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+For the complete clone-to-deploy walkthrough covering Terraform IaC, GCS remote state, Firebase Auth, GitHub Environment & branch protection, and automated CI/CD, see **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
 
 ---
 

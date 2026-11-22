@@ -77,3 +77,11 @@ hosting-debug.log*
 
 # Docker Local Overrides
 docker-compose.override.yml
+
+# Terraform IaC
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform.tfvars.example
+*.tfplan
