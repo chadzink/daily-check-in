@@ -157,3 +157,13 @@ flowchart TD
   - `internal/service/day_session_service.go` (exclude archived tasks from active `TODAY`/`BLOCKED` rows).
   - `frontend/src/components/board/` (`TaskCard.tsx`, `EditTaskModal.tsx`, `DailyBoard.tsx`, row components) & `frontend/src/hooks/useBoard.ts`.
 - **Sign-Off:** **Implemented & QA Verified (Pending Merge Sign-Off)**.
+
+---
+
+### 📊 Milestone / Batch 12: Completed Tasks Cleanup, Reports, CSV Export & List Ordering (PLAN-012)
+- **Focus:** Exclude completed tasks from Backlog, add date-range Completed Tasks Report modal with CSV export, insert new tasks at top of lists, and support jump-to-index reordering.
+- **Deliverables:**
+  - `internal/repository/task_repo.go` (`is_completed == false` backlog filter) & `internal/service/task_service.go` (top-of-list insertion).
+  - `internal/service/report_service.go` & `internal/api/reports.go` (`GET /api/reports/completed`).
+  - `frontend/src/components/reports/ReportsModal.tsx`, `frontend/src/utils/csvExport.ts`, and `TaskCard.tsx` jump-to-index UI.
+- **Sign-Off:** **Implemented & QA Verified (Pending Merge Sign-Off)**.

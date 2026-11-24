@@ -154,3 +154,25 @@ export interface StandupExportOptions {
   bulletStyle: '-' | '*';
 }
 
+export interface CompletedTaskReportItem {
+  day_task_id: string;
+  task_id: string;
+  date: string;
+  title: string;
+  description: string;
+  status: DayStatus;
+  is_completed: boolean;
+  completed_at?: string | null;
+  priority_order: number;
+  blocker_reason?: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface CompletedTasksReportResponse {
+  start_date: string;
+  end_date: string;
+  total_count: number;
+  tasks: CompletedTaskReportItem[];
+}
+

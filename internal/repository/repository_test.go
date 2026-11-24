@@ -113,17 +113,20 @@ func TestScenario1_MasterTaskCRUD(t *testing.T) {
 	assert.Equal(t, task.ID, batchMap[task.ID].ID)
 	assert.Equal(t, task2.ID, batchMap[task2.ID].ID)
 
-	// 7. Reorder backlog
+	// 7. Reorder backlog (while both tasks are active & incomplete)
 	err = taskRepo.ReorderBacklog(ctx, userID, []string{task2.ID, task.ID})
 	require.NoError(t, err)
 
+	// Verify completed task is omitted from active backlog (PLAN-012)
 	reorderedBacklog, err := taskRepo.ListBacklog(ctx, userID)
 	require.NoError(t, err)
-	require.Len(t, reorderedBacklog, 2)
+	require.Len(t, reorderedBacklog, 1)
 	assert.Equal(t, task2.ID, reorderedBacklog[0].ID)
 	assert.Equal(t, 1, reorderedBacklog[0].BacklogOrder)
-	assert.Equal(t, task.ID, reorderedBacklog[1].ID)
-	assert.Equal(t, 2, reorderedBacklog[1].BacklogOrder)
+
+	reorderedTask1, err := taskRepo.GetByID(ctx, userID, task.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, reorderedTask1.BacklogOrder)
 
 	// 8. Soft-delete / archive task
 	err = taskRepo.Archive(ctx, userID, task.ID)

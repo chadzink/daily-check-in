@@ -131,6 +131,7 @@ func (r *firestoreTaskRepository) ListBacklog(ctx context.Context, userID string
 
 	iter := r.userTasksColl(userID).
 		Where("is_archived", "==", false).
+		Where("is_completed", "==", false).
 		OrderBy("backlog_order", firestore.Asc).
 		Documents(ctx)
 

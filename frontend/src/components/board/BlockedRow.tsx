@@ -12,6 +12,7 @@ interface BlockedRowProps {
   onUnblock: (dayTaskId: string) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
+  onMoveToIndex?: (fromIndex: number, toIndex: number) => void;
   onEdit: (task: TaskCardData) => void;
   onDelete: (task: TaskCardData) => void;
   onAddTask?: (title: string) => void;
@@ -27,6 +28,7 @@ export const BlockedRow: React.FC<BlockedRowProps> = ({
   onUnblock,
   onMoveUp,
   onMoveDown,
+  onMoveToIndex,
   onEdit,
   onDelete,
   onAddTask,
@@ -34,7 +36,7 @@ export const BlockedRow: React.FC<BlockedRowProps> = ({
   isAddingTask = false,
   isReadOnly = false,
 }) => {
-  const cardDataList: TaskCardData[] = tasks.map((t) => ({
+  const cardDataList: TaskCardData[] = tasks.map((t, idx) => ({
     id: t.day_task_id,
     taskId: t.task_id,
     title: t.title,
@@ -42,7 +44,7 @@ export const BlockedRow: React.FC<BlockedRowProps> = ({
     status: 'BLOCKED',
     isCompleted: t.is_completed,
     completedAt: t.completed_at,
-    priorityOrder: t.priority_order,
+    priorityOrder: idx + 1,
     blockerReason: t.blocker_reason,
   }));
 
@@ -81,6 +83,7 @@ export const BlockedRow: React.FC<BlockedRowProps> = ({
           onUnblock={onUnblock}
           onMoveUp={onMoveUp}
           onMoveDown={onMoveDown}
+          onMoveToIndex={onMoveToIndex}
           onEdit={onEdit}
           onDelete={onDelete}
         />

@@ -219,3 +219,27 @@ type CalendarSummaryResponse struct {
 	Month string       `json:"month"` // Format: YYYY-MM
 	Days  []DaySummary `json:"days"`
 }
+
+// CompletedTaskReportItem represents a completed task with full task and day-session metadata for reporting/CSV export
+type CompletedTaskReportItem struct {
+	DayTaskID     string     `json:"day_task_id"`
+	TaskID        string     `json:"task_id"`
+	Date          string     `json:"date"` // Format: YYYY-MM-DD
+	Title         string     `json:"title"`
+	Description   string     `json:"description"`
+	Status        DayStatus  `json:"status"`
+	IsCompleted   bool       `json:"is_completed"`
+	CompletedAt   *time.Time `json:"completed_at,omitempty"`
+	PriorityOrder int        `json:"priority_order"`
+	BlockerReason string     `json:"blocker_reason,omitempty"`
+	CreatedAt     *time.Time `json:"created_at,omitempty"`
+	UpdatedAt     *time.Time `json:"updated_at,omitempty"`
+}
+
+// CompletedTasksReportResponse wraps completed task items for a queried date range
+type CompletedTasksReportResponse struct {
+	StartDate  string                    `json:"start_date"`
+	EndDate    string                    `json:"end_date"`
+	TotalCount int                       `json:"total_count"`
+	Tasks      []CompletedTaskReportItem `json:"tasks"`
+}

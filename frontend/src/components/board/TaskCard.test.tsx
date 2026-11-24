@@ -189,4 +189,33 @@ describe('TaskCard Component', () => {
     expect(titleEl).toHaveClass('line-through');
     expect(screen.getByText(/Completed at/i)).toBeInTheDocument();
   });
+
+  it('allows clicking #N rank badge to jump to a specific index', async () => {
+    const onMoveToIndex = vi.fn();
+    const task: TaskCardData = {
+      id: 'dt-jump',
+      taskId: 't-jump',
+      title: 'Jumpable Task',
+      status: 'TODAY',
+      isCompleted: false,
+      priorityOrder: 1,
+    };
+
+    const user = userEvent.setup();
+    render(
+      <TaskCard
+        task={task}
+        index={0}
+        totalCount={4}
+        onMoveToIndex={onMoveToIndex}
+      />
+    );
+
+    await user.click(screen.getByTestId('task-rank-dt-jump'));
+    const input = screen.getByTestId('task-rank-input-dt-jump');
+    await user.clear(input);
+    await user.type(input, '3{Enter}');
+
+    expect(onMoveToIndex).toHaveBeenCalledWith(0, 2);
+  });
 });

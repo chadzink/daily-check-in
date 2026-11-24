@@ -1,5 +1,6 @@
 import {
   BacklogResponse,
+  CompletedTasksReportResponse,
   CreateDayTaskPayload,
   CreateTaskPayload,
   DaySession,
@@ -177,4 +178,14 @@ export async function archiveTask(id: string): Promise<{ archived: boolean }> {
     method: 'DELETE',
   });
   return handleResponse<{ archived: boolean }>(res);
+}
+
+// Reports API
+export async function fetchCompletedTasksReport(
+  startDate: string,
+  endDate: string
+): Promise<CompletedTasksReportResponse> {
+  const params = new URLSearchParams({ start: startDate, end: endDate });
+  const res = await authFetch(`${BASE_URL}/reports/completed?${params.toString()}`);
+  return handleResponse<CompletedTasksReportResponse>(res);
 }
