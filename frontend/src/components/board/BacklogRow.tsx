@@ -10,6 +10,7 @@ interface BacklogRowProps {
   onPull: (taskId: string) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
+  onMoveToIndex?: (fromIndex: number, toIndex: number) => void;
   onEdit: (task: TaskCardData) => void;
   onDelete: (task: TaskCardData) => void;
   onAddTask: (title: string) => void;
@@ -23,6 +24,7 @@ export const BacklogRow: React.FC<BacklogRowProps> = ({
   onPull,
   onMoveUp,
   onMoveDown,
+  onMoveToIndex,
   onEdit,
   onDelete,
   onAddTask,
@@ -30,7 +32,7 @@ export const BacklogRow: React.FC<BacklogRowProps> = ({
   isAddingTask = false,
   quickAddRef,
 }) => {
-  const cardDataList: TaskCardData[] = tasks.map((t) => ({
+  const cardDataList: TaskCardData[] = tasks.map((t, idx) => ({
     id: t.id,
     taskId: t.id,
     title: t.title,
@@ -38,7 +40,7 @@ export const BacklogRow: React.FC<BacklogRowProps> = ({
     status: 'BACKLOG',
     isCompleted: t.is_completed,
     completedAt: t.completed_at,
-    priorityOrder: t.backlog_order,
+    priorityOrder: idx + 1,
   }));
 
   return (
@@ -69,6 +71,7 @@ export const BacklogRow: React.FC<BacklogRowProps> = ({
           onPull={onPull}
           onMoveUp={onMoveUp}
           onMoveDown={onMoveDown}
+          onMoveToIndex={onMoveToIndex}
           onEdit={onEdit}
           onDelete={onDelete}
         />

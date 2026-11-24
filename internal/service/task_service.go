@@ -49,13 +49,15 @@ func (s *taskService) CreateTask(ctx context.Context, userID string, req model.C
 		return nil, fmt.Errorf("%w: task title cannot be empty", model.ErrInvalidInput)
 	}
 
+	var existingBacklogIDs []string
 	backlogOrder := req.BacklogOrder
 	if backlogOrder <= 0 {
-		backlog, err := s.taskRepo.ListBacklog(ctx, userID)
-		if err == nil {
-			backlogOrder = len(backlog) + 1
-		} else {
-			backlogOrder = 1
+		backlogOrder = 1
+		if backlog, err := s.taskRepo.ListBacklog(ctx, userID); err == nil {
+			existingBacklogIDs = make([]string, 0, len(backlog))
+			for _, t := range backlog {
+				existingBacklogIDs = append(existingBacklogIDs, t.ID)
+			}
 		}
 	}
 
@@ -75,9 +77,23 @@ func (s *taskService) CreateTask(ctx context.Context, userID string, req model.C
 		return nil, fmt.Errorf("failed to persist task: %w", err)
 	}
 
+	if len(existingBacklogIDs) > 0 {
+		orderedIDs := append([]string{task.ID}, existingBacklogIDs...)
+		_ = s.taskRepo.ReorderBacklog(ctx, userID, orderedIDs)
+	}
+
 	// Quick-add to day session if target_date and status are specified
 	if req.TargetDate != "" && req.Status != nil && s.daySessionRepo != nil && s.dayTaskRepo != nil {
 		if _, err := s.daySessionRepo.GetOrCreateByDate(ctx, userID, req.TargetDate); err == nil {
+			var existingSameStatusIDs []string
+			if existingDayTasks, listErr := s.dayTaskRepo.ListByDate(ctx, userID, req.TargetDate); listErr == nil {
+				for _, dt := range existingDayTasks {
+					if dt.Status == *req.Status {
+						existingSameStatusIDs = append(existingSameStatusIDs, dt.ID)
+					}
+				}
+			}
+
 			dayTask := &model.DayTask{
 				ID:            uuid.New().String(),
 				DaySessionID:  req.TargetDate,
@@ -86,7 +102,10 @@ func (s *taskService) CreateTask(ctx context.Context, userID string, req model.C
 				IsCompleted:   false,
 				PriorityOrder: 1,
 			}
-			_ = s.dayTaskRepo.Create(ctx, userID, req.TargetDate, dayTask)
+			if createErr := s.dayTaskRepo.Create(ctx, userID, req.TargetDate, dayTask); createErr == nil && len(existingSameStatusIDs) > 0 {
+				orderedDayIDs := append([]string{dayTask.ID}, existingSameStatusIDs...)
+				_ = s.dayTaskRepo.Reorder(ctx, userID, req.TargetDate, orderedDayIDs)
+			}
 		}
 	}
 

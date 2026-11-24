@@ -11,6 +11,7 @@ import {
   createTask,
   createBacklogTask,
   reorderBacklog,
+  fetchCompletedTasksReport,
 } from '../api/tasks';
 import {
   BacklogResponse,
@@ -23,6 +24,7 @@ import {
 export const queryKeys = {
   daySession: (date: string) => ['daySession', date] as const,
   backlog: () => ['backlog'] as const,
+  completedReport: (start: string, end: string) => ['completedReport', start, end] as const,
 };
 
 export function useDaySession(date: string) {
@@ -544,5 +546,14 @@ export function useArchiveTask(date: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.daySession(date) });
       queryClient.invalidateQueries({ queryKey: queryKeys.backlog() });
     },
+  });
+}
+
+
+export function useCompletedTasksReport(startDate: string, endDate: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.completedReport(startDate, endDate),
+    queryFn: () => fetchCompletedTasksReport(startDate, endDate),
+    enabled: enabled && !!startDate && !!endDate,
   });
 }

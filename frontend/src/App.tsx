@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Activity, Layers, Loader2, LogOut } from 'lucide-react';
+import { Activity, BarChart3, Layers, Loader2, LogOut } from 'lucide-react';
 import { DailyBoard } from './components/board/DailyBoard';
 import { CalendarWidget } from './components/calendar/CalendarWidget';
 import { HealthModal } from './components/HealthModal';
+import { ReportsModal } from './components/reports/ReportsModal';
 import { LoginPage } from './components/auth/LoginPage';
 import { useAuth } from './context/AuthContext';
 import { DateProvider, useDateContext } from './context/DateContext';
@@ -11,6 +12,7 @@ export const AppContent: React.FC = () => {
   const { selectedDate, isHistorical } = useDateContext();
   const { logout } = useAuth();
   const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
+  const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 bg-mesh-dark flex flex-col selection:bg-indigo-500 selection:text-white">
@@ -29,6 +31,18 @@ export const AppContent: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-2.5 sm:space-x-3">
+            {/* Reports Button */}
+            <button
+              type="button"
+              onClick={() => setIsReportsModalOpen(true)}
+              data-testid="reports-button"
+              aria-label="Reports"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+            >
+              <BarChart3 className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Reports</span>
+            </button>
+
             {/* Top-Navigation Interactive Calendar Widget */}
             <CalendarWidget />
 
@@ -83,6 +97,11 @@ export const AppContent: React.FC = () => {
       <HealthModal
         isOpen={isHealthModalOpen}
         onClose={() => setIsHealthModalOpen(false)}
+      />
+
+      <ReportsModal
+        isOpen={isReportsModalOpen}
+        onClose={() => setIsReportsModalOpen(false)}
       />
     </div>
   );

@@ -134,18 +134,30 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [backlog, pullBacklogTask]);
 
-  const swapAdjacent = <T,>(items: T[], index: number, direction: -1 | 1): T[] | null => {
-    const targetIndex = index + direction;
-    if (targetIndex < 0 || targetIndex >= items.length) return null;
+  const moveItemToIndex = <T,>(items: T[], fromIndex: number, toIndex: number): T[] | null => {
+    if (
+      fromIndex < 0 ||
+      fromIndex >= items.length ||
+      toIndex < 0 ||
+      toIndex >= items.length ||
+      fromIndex === toIndex
+    ) {
+      return null;
+    }
     const next = [...items];
-    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
     return next;
   };
 
   const handleMoveDayTask = (status: 'TODAY' | 'BLOCKED', index: number, direction: -1 | 1) => {
+    handleMoveDayTaskToIndex(status, index, index + direction);
+  };
+
+  const handleMoveDayTaskToIndex = (status: 'TODAY' | 'BLOCKED', fromIndex: number, toIndex: number) => {
     if (isHistorical || !daySession) return;
     const list = status === 'TODAY' ? daySession.tasks.today : daySession.tasks.blocked;
-    const reordered = swapAdjacent(list, index, direction);
+    const reordered = moveItemToIndex(list, fromIndex, toIndex);
     if (!reordered) return;
     reorderDayTasks.mutate({
       status,
@@ -158,8 +170,16 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
     index: number,
     direction: -1 | 1
   ) => {
+    handleMoveBacklogTaskToIndex(uncommittedTasks, index, index + direction);
+  };
+
+  const handleMoveBacklogTaskToIndex = (
+    uncommittedTasks: NonNullable<typeof backlog>['tasks'],
+    fromIndex: number,
+    toIndex: number
+  ) => {
     if (isHistorical) return;
-    const reordered = swapAdjacent(uncommittedTasks, index, direction);
+    const reordered = moveItemToIndex(uncommittedTasks, fromIndex, toIndex);
     if (!reordered) return;
     reorderBacklog.mutate(reordered.map((t) => t.id));
   };
@@ -264,7 +284,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
   }
 
   const uncommittedBacklogTasks = (backlog?.tasks || []).filter(
-    (t) => !committedTaskIds.has(t.id) && !t.is_archived
+    (t) => !committedTaskIds.has(t.id) && !t.is_archived && !t.is_completed
   );
 
   return (
@@ -331,6 +351,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
           onBlock={handleOpenBlockerModal}
           onMoveUp={(index) => handleMoveDayTask('TODAY', index, -1)}
           onMoveDown={(index) => handleMoveDayTask('TODAY', index, 1)}
+          onMoveToIndex={(fromIdx, toIdx) => handleMoveDayTaskToIndex('TODAY', fromIdx, toIdx)}
           onEdit={(task) => setEditingTask(task)}
           onDelete={(task) => setDeletingTask(task)}
           onAddTask={(title) => createTodayTask.mutate({ title, status: 'TODAY' })}
@@ -350,6 +371,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
           onUnblock={(dayTaskId) => unblockTask.mutate({ dayTaskId })}
           onMoveUp={(index) => handleMoveDayTask('BLOCKED', index, -1)}
           onMoveDown={(index) => handleMoveDayTask('BLOCKED', index, 1)}
+          onMoveToIndex={(fromIdx, toIdx) => handleMoveDayTaskToIndex('BLOCKED', fromIdx, toIdx)}
           onEdit={(task) => setEditingTask(task)}
           onDelete={(task) => setDeletingTask(task)}
           onAddTask={(title) => createTodayTask.mutate({ title, status: 'BLOCKED' })}
@@ -363,6 +385,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
           onPull={(taskId) => pullBacklogTask.mutate({ taskId, status: 'TODAY' })}
           onMoveUp={(index) => handleMoveBacklogTask(uncommittedBacklogTasks, index, -1)}
           onMoveDown={(index) => handleMoveBacklogTask(uncommittedBacklogTasks, index, 1)}
+          onMoveToIndex={(fromIdx, toIdx) => handleMoveBacklogTaskToIndex(uncommittedBacklogTasks, fromIdx, toIdx)}
           onEdit={(task) => setEditingTask(task)}
           onDelete={(task) => setDeletingTask(task)}
           onAddTask={(title) => createBacklogTask.mutate({ title })}

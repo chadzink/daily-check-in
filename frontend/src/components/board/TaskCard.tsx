@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Check,
   AlertCircle,
@@ -37,6 +37,7 @@ interface TaskCardProps {
   onBlock?: (dayTaskId: string, title: string) => void;
   onMoveUp?: (index: number) => void;
   onMoveDown?: (index: number) => void;
+  onMoveToIndex?: (fromIndex: number, toIndex: number) => void;
   onEdit?: (task: TaskCardData) => void;
   onDelete?: (task: TaskCardData) => void;
 }
@@ -53,14 +54,30 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onBlock,
   onMoveUp,
   onMoveDown,
+  onMoveToIndex,
   onEdit,
   onDelete,
 }) => {
+  const [isEditingRank, setIsEditingRank] = useState(false);
+  const [rankInput, setRankInput] = useState('');
+
   const isYesterday = task.status === 'YESTERDAY';
   const isToday = task.status === 'TODAY';
   const isBlocked = task.status === 'BLOCKED';
   const isBacklog = task.status === 'BACKLOG';
   const canMutate = !isReadOnly && !isYesterday;
+
+  const commitRankJump = () => {
+    setIsEditingRank(false);
+    if (!onMoveToIndex) return;
+    const parsed = parseInt(rankInput, 10);
+    if (Number.isNaN(parsed)) return;
+    const clamped = Math.max(1, Math.min(totalCount, parsed));
+    const targetIndex = clamped - 1;
+    if (targetIndex !== index) {
+      onMoveToIndex(index, targetIndex);
+    }
+  };
 
   const formatTimestamp = (isoString?: string | null) => {
     if (!isoString) return '';
@@ -135,11 +152,48 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             </button>
           )}
 
-          {/* Priority Rank Indicator (Today row only) */}
-          {isToday && typeof task.priorityOrder === 'number' && (
-            <span className="mt-0.5 px-1.5 py-0.2 text-[10px] font-mono font-bold rounded bg-sky-500/15 text-sky-400 border border-sky-500/30 flex-shrink-0">
-              #{task.priorityOrder}
-            </span>
+          {/* Priority Rank Indicator (clickable to jump to index when mutable & >1 item) */}
+          {!isYesterday && typeof task.priorityOrder === 'number' && (
+            isEditingRank ? (
+              <input
+                type="number"
+                min={1}
+                max={totalCount}
+                autoFocus
+                data-testid={`task-rank-input-${task.id}`}
+                aria-label="Target position"
+                value={rankInput}
+                onChange={(e) => setRankInput(e.target.value)}
+                onBlur={commitRankJump}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    commitRankJump();
+                  } else if (e.key === 'Escape') {
+                    setIsEditingRank(false);
+                  }
+                }}
+                className="mt-0.5 w-11 px-1 py-0.5 text-[10px] font-mono font-bold rounded bg-slate-950 text-sky-300 border border-sky-500/60 focus:outline-none focus:ring-1 focus:ring-sky-400 flex-shrink-0"
+              />
+            ) : canMutate && onMoveToIndex && totalCount > 1 ? (
+              <button
+                type="button"
+                data-testid={`task-rank-${task.id}`}
+                onClick={() => {
+                  setRankInput(String(index + 1));
+                  setIsEditingRank(true);
+                }}
+                title="Click to move to a specific position"
+                aria-label={`Position ${index + 1}, click to move`}
+                className="mt-0.5 px-1.5 py-0.2 text-[10px] font-mono font-bold rounded bg-sky-500/15 hover:bg-sky-500/30 text-sky-400 border border-sky-500/30 cursor-pointer transition-colors flex-shrink-0"
+              >
+                #{task.priorityOrder}
+              </button>
+            ) : (
+              <span className="mt-0.5 px-1.5 py-0.2 text-[10px] font-mono font-bold rounded bg-sky-500/15 text-sky-400 border border-sky-500/30 flex-shrink-0">
+                #{task.priorityOrder}
+              </span>
+            )
           )}
 
           {/* Title & Description */}

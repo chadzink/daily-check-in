@@ -12,6 +12,7 @@ interface TodayRowProps {
   onBlock: (dayTaskId: string, title: string) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
+  onMoveToIndex?: (fromIndex: number, toIndex: number) => void;
   onEdit: (task: TaskCardData) => void;
   onDelete: (task: TaskCardData) => void;
   onAddTask: (title: string) => void;
@@ -28,6 +29,7 @@ export const TodayRow: React.FC<TodayRowProps> = ({
   onBlock,
   onMoveUp,
   onMoveDown,
+  onMoveToIndex,
   onEdit,
   onDelete,
   onAddTask,
@@ -85,6 +87,7 @@ export const TodayRow: React.FC<TodayRowProps> = ({
           onBlock={onBlock}
           onMoveUp={onMoveUp}
           onMoveDown={onMoveDown}
+          onMoveToIndex={onMoveToIndex}
           onEdit={onEdit}
           onDelete={onDelete}
         />
