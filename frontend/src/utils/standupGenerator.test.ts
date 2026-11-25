@@ -62,7 +62,8 @@ describe('generateStandupMarkdown', () => {
   };
 
   it('generates standard markdown with yesterday, today, and blocked sections', () => {
-    const markdown = generateStandupMarkdown(mockSession);
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const markdown = generateStandupMarkdown(mockSession, {}, todayIso);
     expect(markdown).toContain('**Yesterday:**');
     expect(markdown).toContain('- Completed auth endpoints');
     expect(markdown).toContain('**Today:**');
@@ -94,5 +95,11 @@ describe('generateStandupMarkdown', () => {
   it('respects custom bullet style (*)', () => {
     const markdown = generateStandupMarkdown(mockSession, { bulletStyle: '*' });
     expect(markdown).toContain('* Completed auth endpoints');
+  });
+
+  it('uses relative calendar date headings when dateStr differs from today', () => {
+    const markdown = generateStandupMarkdown(mockSession, {}, '2026-11-23');
+    expect(markdown).toContain('**Sunday, Nov 22, 2026:**');
+    expect(markdown).toContain('**Monday, Nov 23, 2026:**');
   });
 });

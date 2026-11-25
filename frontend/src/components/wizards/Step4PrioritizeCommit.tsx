@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowUp, ArrowDown, ListOrdered, FileText } from 'lucide-react';
+import { MarkdownNotesEditor } from '../common/MarkdownNotesEditor';
 
 export interface PrioritizedItem {
   id: string; // task_id
@@ -94,12 +95,11 @@ export const Step4PrioritizeCommit: React.FC<Step4PrioritizeCommitProps> = ({
           <FileText className="h-3.5 w-3.5 text-indigo-400" />
           <span>Morning Focus Notes (Optional)</span>
         </label>
-        <textarea
-          rows={2}
+        <MarkdownNotesEditor
           value={notes}
-          onChange={(e) => onNotesChange(e.target.value)}
+          onChange={onNotesChange}
+          rows={3}
           placeholder="E.g., Deep focus block from 10am-12pm on core backend endpoints..."
-          className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
         />
       </div>
     </div>

@@ -13,6 +13,7 @@ import {
   useReorderBacklog,
   useUpdateTask,
   useArchiveTask,
+  useUpdateDayNotes,
 } from '../../hooks/useBoard';
 import { YesterdayRow } from './YesterdayRow';
 import { TodayRow } from './TodayRow';
@@ -22,6 +23,8 @@ import { TaskCardData } from './TaskCard';
 import { BlockerReasonModal } from './BlockerReasonModal';
 import { EditTaskModal } from './EditTaskModal';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
+import { DailyNotesModal } from './DailyNotesModal';
+import { getRelativeSectionLabels } from '../../utils/dateLabels';
 import { DaySessionActionBar } from './DaySessionActionBar';
 import { MorningCheckInBanner } from './MorningCheckInBanner';
 import { MorningCheckInModal } from '../wizards/MorningCheckInModal';
@@ -61,6 +64,8 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
   const reorderBacklog = useReorderBacklog();
   const updateTaskMutation = useUpdateTask(date);
   const archiveTaskMutation = useArchiveTask(date);
+  const updateDayNotesMutation = useUpdateDayNotes(date);
+  const { yesterdayLabel, todayLabel } = getRelativeSectionLabels(date);
 
   // Blocker modal state
   const [blockerModalState, setBlockerModalState] = useState<{
@@ -82,6 +87,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
   const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
   const [isCheckOutModalOpen, setIsCheckOutModalOpen] = useState(false);
   const [isStandupModalOpen, setIsStandupModalOpen] = useState(false);
+  const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [isBannerDismissed, setIsBannerDismissed] = useState(false);
   const hasAutoOpenedRef = useRef(false);
 
@@ -298,6 +304,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
         onStartCheckIn={() => setIsCheckInModalOpen(true)}
         onStartCheckOut={() => setIsCheckOutModalOpen(true)}
         onExportStandup={() => setIsStandupModalOpen(true)}
+        onOpenNotes={() => setIsNotesModalOpen(true)}
         isReadOnly={isHistorical}
       />
 
@@ -338,11 +345,12 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
         className="flex flex-col gap-5"
       >
         {/* Row 1: Yesterday */}
-        <YesterdayRow tasks={daySession?.tasks?.yesterday || []} />
+        <YesterdayRow tasks={daySession?.tasks?.yesterday || []} title={yesterdayLabel} />
 
         {/* Row 2: Today */}
         <TodayRow
           tasks={daySession?.tasks?.today || []}
+          title={todayLabel}
           isReadOnly={isHistorical}
           onToggleComplete={(dayTaskId, isCompleted) =>
             toggleComplete.mutate({ dayTaskId, isCompleted })
@@ -462,6 +470,22 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
         onClose={() => setIsStandupModalOpen(false)}
         sessionWithTasks={daySession}
         dateStr={date}
+      />
+
+      {/* Daily Notes Modal */}
+      <DailyNotesModal
+        isOpen={isNotesModalOpen}
+        dateLabel={todayLabel === 'Today' ? date : todayLabel}
+        initialNotes={daySession?.session?.notes ?? ''}
+        isReadOnly={isHistorical}
+        isSaving={updateDayNotesMutation.isPending}
+        onSave={(notes) => {
+          updateDayNotesMutation.mutate(
+            { notes },
+            { onSuccess: () => setIsNotesModalOpen(false) }
+          );
+        }}
+        onClose={() => setIsNotesModalOpen(false)}
       />
     </div>
   );

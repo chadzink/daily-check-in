@@ -96,9 +96,9 @@ describe('StandupExportModal Component', () => {
 
     const textarea = screen.getByTestId('standup-markdown-textarea') as HTMLTextAreaElement;
     expect(textarea).toBeInTheDocument();
-    expect(textarea.value).toContain('**Yesterday:**');
+    expect(textarea.value).toContain('**Thursday, Sep 3, 2026:**');
     expect(textarea.value).toContain('- Finished Milestone 4');
-    expect(textarea.value).toContain('**Today:**');
+    expect(textarea.value).toContain('**Friday, Sep 4, 2026:**');
     expect(textarea.value).toContain('**Blocked:**');
   });
 
@@ -116,7 +116,7 @@ describe('StandupExportModal Component', () => {
     fireEvent.click(copyBtn);
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-      expect.stringContaining('**Today:**')
+      expect.stringContaining('**Friday, Sep 4, 2026:**')
     );
     expect(await screen.findByTestId('copied-confirmation')).toHaveTextContent('Copied to Clipboard!');
   });

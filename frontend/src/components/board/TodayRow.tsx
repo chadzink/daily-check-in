@@ -7,6 +7,7 @@ import { DayTaskWithDetails } from '../../types/domain';
 
 interface TodayRowProps {
   tasks: DayTaskWithDetails[];
+  title?: string;
   onToggleComplete: (dayTaskId: string, isCompleted: boolean) => void;
   onDemote: (dayTaskId: string) => void;
   onBlock: (dayTaskId: string, title: string) => void;
@@ -24,6 +25,7 @@ interface TodayRowProps {
 
 export const TodayRow: React.FC<TodayRowProps> = ({
   tasks,
+  title = 'Today',
   onToggleComplete,
   onDemote,
   onBlock,
@@ -53,7 +55,7 @@ export const TodayRow: React.FC<TodayRowProps> = ({
   return (
     <ExecutionRow
       droppableId="TODAY"
-      title="Today"
+      title={title}
       count={tasks.length}
       icon={<Target className="h-4 w-4" />}
       accentColor="sky"

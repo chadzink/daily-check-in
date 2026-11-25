@@ -362,4 +362,66 @@ describe('DailyBoard Component', () => {
       );
     });
   });
+
+  it('renders relative date headers on non-current dates and supports Daily Notes modal', async () => {
+    const patchSessionMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 's-1',
+        user_id: 'u-1',
+        date: '2026-11-23',
+        notes: '**Updated** markdown note',
+      }),
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+        if (opts?.method === 'PATCH' && url.endsWith('/api/days/2026-11-23')) {
+          return patchSessionMock(JSON.parse(String(opts.body)));
+        }
+        if (url.includes('/api/days/2026-11-23')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              session: {
+                id: 's-1',
+                user_id: 'u-1',
+                date: '2026-11-23',
+                notes: '',
+                check_in_at: '2026-11-23T09:00:00Z',
+              },
+              tasks: { yesterday: [], today: [], blocked: [] },
+            }),
+          });
+        }
+        if (url.includes('/api/backlog')) {
+          return Promise.resolve({ ok: true, json: async () => ({ tasks: [] }) });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      })
+    );
+
+    const user = userEvent.setup();
+    renderWithClient(<DailyBoard date="2026-11-23" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Sunday, Nov 22, 2026')).toBeInTheDocument();
+      expect(screen.getByText('Monday, Nov 23, 2026')).toBeInTheDocument();
+    });
+
+    const notesBtn = screen.getByTestId('daily-notes-btn');
+    expect(notesBtn).toHaveAttribute('aria-label', 'Add daily notes');
+    await user.click(notesBtn);
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByTestId('markdown-preview-pane')).toBeInTheDocument();
+    await user.click(within(dialog).getByTestId('markdown-tab-write'));
+    await user.type(within(dialog).getByRole('textbox'), '**Updated** markdown note');
+    await user.click(within(dialog).getByTestId('save-daily-notes-btn'));
+
+    await waitFor(() => {
+      expect(patchSessionMock).toHaveBeenCalledWith({ notes: '**Updated** markdown note' });
+    });
+  });
 });

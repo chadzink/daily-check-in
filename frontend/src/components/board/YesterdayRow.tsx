@@ -6,9 +6,10 @@ import { DayTaskWithDetails } from '../../types/domain';
 
 interface YesterdayRowProps {
   tasks: DayTaskWithDetails[];
+  title?: string;
 }
 
-export const YesterdayRow: React.FC<YesterdayRowProps> = ({ tasks }) => {
+export const YesterdayRow: React.FC<YesterdayRowProps> = ({ tasks, title = 'Yesterday' }) => {
   const cardDataList: TaskCardData[] = tasks.map((t) => ({
     id: t.day_task_id,
     taskId: t.task_id,
@@ -23,7 +24,7 @@ export const YesterdayRow: React.FC<YesterdayRowProps> = ({ tasks }) => {
   return (
     <ExecutionRow
       droppableId="YESTERDAY"
-      title="Yesterday"
+      title={title}
       count={tasks.length}
       icon={<CheckCircle2 className="h-4 w-4" />}
       accentColor="emerald"

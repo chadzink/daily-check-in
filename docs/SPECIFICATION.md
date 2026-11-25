@@ -83,10 +83,11 @@ The application organizes tasks into four distinct core sections:
    - "Jump to Today" quick button.
 3. **Day Session Action Bar:**
    - Displays Check-In and Check-Out status and timestamps for the selected day.
+   - Displays a Daily Notes icon button (outline when empty, green-filled when notes exist) opening a Markdown-enabled Daily Notes modal (editable on today's session, read-only preview on historical dates).
    - Action buttons: "Start Check-In" (if not checked in), "Check-Out" (if day is active), and "Export Standup".
 4. **4-Row Daily Layout:**
-   - **Row 1 - Yesterday:** Displays tasks marked completed on the previous active workday (read-only).
-   - **Row 2 - Today:** The active, ordered list for the current day with a wide inline Quick Add + **Details** modal button (new tasks insert at `#1`), Up/Down arrow buttons, clickable `#N` jump-to-index rank badge, Edit/Delete modals, and a "Mark as Blocked" icon button. Checkbox immediately stamps `completed_at` via `PATCH /api/days/:date/tasks/:id`.
+   - **Row 1 - Yesterday (or relative formatted date on non-current days):** Displays tasks marked completed on the previous active workday (read-only).
+   - **Row 2 - Today (or relative formatted date on non-current days):** The active, ordered list for the current day with a wide inline Quick Add + **Details** modal button (new tasks insert at `#1`), Up/Down arrow buttons, clickable `#N` jump-to-index rank badge, Edit/Delete modals, and a "Mark as Blocked" icon button. Checkbox immediately stamps `completed_at` via `PATCH /api/days/:date/tasks/:id`.
    - **Row 3 - Blocked:** Tasks marked as blocked, with visible blocker explanation chip/text, Quick Add + **Details** modal, Up/Down & `#N` jump-to-index ordering, Edit/Delete modals, and 1-click Unblock.
    - **Row 4 - Backlog:** Persistent global pool of incomplete, unarchived master tasks (`is_completed = false`, `is_archived = false`), with wide inline Quick Add + **Details** modal (new tasks insert at `#1`), Up/Down & `#N` jump-to-index ordering, Edit/Delete modals, and 1-click "Pull into Today" quick actions.
 
