@@ -84,8 +84,9 @@ type DayTasksGrouped struct {
 
 // DaySessionWithTasks delivers the complete daily workspace in a single round-trip
 type DaySessionWithTasks struct {
-	Session DaySession      `json:"session"`
-	Tasks   DayTasksGrouped `json:"tasks"`
+	Session       DaySession      `json:"session"`
+	Tasks         DayTasksGrouped `json:"tasks"`
+	YesterdayDate string          `json:"yesterday_date,omitempty"`
 }
 
 // --- Request & Response DTOs ---
@@ -175,6 +176,7 @@ type RolloverDecision struct {
 type CheckInContextResponse struct {
 	TargetDate         string               `json:"target_date"`
 	PreviousDate       string               `json:"previous_date,omitempty"`
+	YesterdayDate      string               `json:"yesterday_date,omitempty"`
 	YesterdayTasks     []DayTaskWithDetails `json:"yesterday_tasks"`
 	RolloverCandidates []DayTaskWithDetails `json:"rollover_candidates"`
 	BacklogTasks       []*Task              `json:"backlog_tasks"`

@@ -134,6 +134,7 @@ go build -o bin/dailycheckin ./cmd/server
 - [ ] Container build stages must match or exceed the Go version defined in `go.mod` (Go 1.25+).
 - [ ] Static asset routers and healthcheck endpoints must support both `GET` and `HEAD` requests to ensure compatibility with container health checks and CDN/monitoring probes.
 - [ ] Embedded static file servers must distinguish caching headers: immutable caching (`public, max-age=31536000, immutable`) for hashed `/assets/*` files, and `no-cache` for root `index.html` to prevent stale client bundles.
+- [ ] `Yesterday` accomplishments must be resolved dynamically from the most recent prior day with non-`YESTERDAY` completed tasks (`dt.Status != model.StatusYesterday && dt.IsCompleted`), never persisted as duplicated `StatusYesterday` `DayTask` records, and reporting/calendar aggregations must ignore legacy `StatusYesterday` records.
 
 
 

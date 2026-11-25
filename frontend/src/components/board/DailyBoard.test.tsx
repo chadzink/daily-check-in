@@ -24,6 +24,7 @@ describe('DailyBoard Component', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    window.localStorage.clear();
   });
 
   it('renders all 4 execution rows: Yesterday, Today, Blocked, and Backlog', async () => {
@@ -422,6 +423,175 @@ describe('DailyBoard Component', () => {
 
     await waitFor(() => {
       expect(patchSessionMock).toHaveBeenCalledWith({ notes: '**Updated** markdown note' });
+    });
+  });
+
+  it('renders rows in Today -> Yesterday -> Blocked -> Backlog order and shows Yesterday date hint when older', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/api/days/2026-11-25')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              session: {
+                id: 's-1',
+                user_id: 'u-1',
+                date: '2026-11-25',
+                notes: '',
+                check_in_at: '2026-11-25T09:00:00Z',
+              },
+              yesterday_date: '2026-11-23',
+              tasks: {
+                yesterday: [
+                  {
+                    day_task_id: 'dt-y1',
+                    task_id: 't-y1',
+                    title: 'Monday Shipped Task',
+                    description: '',
+                    status: 'YESTERDAY',
+                    is_completed: true,
+                    priority_order: 1,
+                  },
+                ],
+                today: [],
+                blocked: [],
+              },
+            }),
+          });
+        }
+        if (url.includes('/api/backlog')) {
+          return Promise.resolve({ ok: true, json: async () => ({ tasks: [] }) });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      })
+    );
+
+    renderWithClient(<DailyBoard date="2026-11-25" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('daily-board-rows')).toBeInTheDocument();
+    });
+
+    const container = screen.getByTestId('daily-board-rows');
+    const rowOrder = Array.from(container.children).map((el) => el.getAttribute('data-testid'));
+    expect(rowOrder).toEqual([
+      'execution-row-today',
+      'execution-row-yesterday',
+      'execution-row-blocked',
+      'execution-row-backlog',
+    ]);
+
+    expect(screen.getByTestId('row-subtitle-yesterday')).toHaveTextContent('Mon, Nov 23');
+  });
+
+  it('supports collapsing/expanding rows, persists state in localStorage, and auto-expands on N/B shortcuts', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/api/days/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              session: {
+                id: 's-1',
+                user_id: 'u-1',
+                date: mockDate,
+                notes: '',
+                check_in_at: '2026-08-31T09:00:00Z',
+              },
+              tasks: {
+                yesterday: [
+                  {
+                    day_task_id: 'dt-y1',
+                    task_id: 't-y1',
+                    title: 'Yesterday Done Task',
+                    description: '',
+                    status: 'YESTERDAY',
+                    is_completed: true,
+                    priority_order: 1,
+                  },
+                ],
+                today: [
+                  {
+                    day_task_id: 'dt-t1',
+                    task_id: 't-t1',
+                    title: 'Today Active Task',
+                    description: '',
+                    status: 'TODAY',
+                    is_completed: false,
+                    priority_order: 1,
+                  },
+                ],
+                blocked: [],
+              },
+            }),
+          });
+        }
+        if (url.includes('/api/backlog')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              tasks: [
+                {
+                  id: 't-b1',
+                  user_id: 'u-1',
+                  title: 'Backlog Task Item',
+                  description: '',
+                  is_completed: false,
+                  is_archived: false,
+                  backlog_order: 1,
+                },
+              ],
+            }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      })
+    );
+
+    const user = userEvent.setup();
+    const { unmount } = renderWithClient(<DailyBoard date={mockDate} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Yesterday Done Task')).toBeInTheDocument();
+      expect(screen.getByText('Backlog Task Item')).toBeInTheDocument();
+    });
+
+    // Collapse Yesterday and Backlog
+    const yesterdayToggle = screen.getByTestId('toggle-row-yesterday');
+    const backlogToggle = screen.getByTestId('toggle-row-backlog');
+    expect(yesterdayToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(backlogToggle).toHaveAttribute('aria-expanded', 'true');
+
+    await user.click(yesterdayToggle);
+    await user.click(backlogToggle);
+
+    expect(yesterdayToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(backlogToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Yesterday Done Task')).not.toBeInTheDocument();
+    expect(screen.queryByText('Backlog Task Item')).not.toBeInTheDocument();
+    // Quick Add input in Backlog should be hidden when collapsed
+    expect(screen.queryByPlaceholderText(/Add task to Backlog/i)).not.toBeInTheDocument();
+
+    // Unmount and remount to simulate reload — collapsed state should persist via localStorage
+    unmount();
+    renderWithClient(<DailyBoard date={mockDate} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('toggle-row-yesterday')).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.getByTestId('toggle-row-backlog')).toHaveAttribute('aria-expanded', 'false');
+    });
+    expect(screen.queryByText('Yesterday Done Task')).not.toBeInTheDocument();
+    expect(screen.queryByText('Backlog Task Item')).not.toBeInTheDocument();
+
+    // Pressing 'b' should auto-expand Backlog and focus its Quick Add input
+    await user.keyboard('b');
+    await waitFor(() => {
+      expect(screen.getByTestId('toggle-row-backlog')).toHaveAttribute('aria-expanded', 'true');
+      const backlogInput = screen.getByPlaceholderText(/Add task to Backlog/i);
+      expect(backlogInput).toBeInTheDocument();
+      expect(backlogInput).toHaveFocus();
     });
   });
 });

@@ -64,9 +64,12 @@ func (s *daySessionService) GetDaySessionWithTasks(ctx context.Context, userID, 
 		return nil, fmt.Errorf("failed to retrieve day tasks: %w", err)
 	}
 
-	// 3. Extract unique master task IDs for a single batched fetch
+	// 3. Extract unique master task IDs for a single batched fetch (ignoring legacy StatusYesterday records)
 	taskIDs := make([]string, 0, len(dayTasks))
 	for _, dt := range dayTasks {
+		if dt.Status == model.StatusYesterday {
+			continue
+		}
 		if dt.TaskID != "" {
 			taskIDs = append(taskIDs, dt.TaskID)
 		}
@@ -78,17 +81,30 @@ func (s *daySessionService) GetDaySessionWithTasks(ctx context.Context, userID, 
 		return nil, fmt.Errorf("failed to batch fetch task details: %w", err)
 	}
 
-	// 5. Join DayTask with master Task attributes and partition into execution rows
+	// 5. Dynamically resolve Yesterday's accomplishments from the last prior day with completed tasks
+	yesterdayDate, yesterdayTasks, err := resolveYesterdayCompletedTasks(
+		ctx, s.daySessionRepo, s.dayTaskRepo, s.taskRepo, userID, date,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve yesterday completed tasks: %w", err)
+	}
+
+	// 6. Join DayTask with master Task attributes and partition into execution rows
 	grouped := model.DayTasksGrouped{
-		Yesterday: make([]model.DayTaskWithDetails, 0),
+		Yesterday: yesterdayTasks,
 		Today:     make([]model.DayTaskWithDetails, 0),
 		Blocked:   make([]model.DayTaskWithDetails, 0),
 	}
 
 	for _, dt := range dayTasks {
+		// Ignore legacy StatusYesterday documents persisted on this date
+		if dt.Status == model.StatusYesterday {
+			continue
+		}
+
 		var title, description string
 		if masterTask, ok := tasksMap[dt.TaskID]; ok {
-			if masterTask.IsArchived && dt.Status != model.StatusYesterday {
+			if masterTask.IsArchived {
 				continue
 			}
 			title = masterTask.Title
@@ -114,8 +130,6 @@ func (s *daySessionService) GetDaySessionWithTasks(ctx context.Context, userID, 
 		}
 
 		switch dt.Status {
-		case model.StatusYesterday:
-			grouped.Yesterday = append(grouped.Yesterday, detail)
 		case model.StatusToday:
 			grouped.Today = append(grouped.Today, detail)
 		case model.StatusBlocked:
@@ -126,8 +140,9 @@ func (s *daySessionService) GetDaySessionWithTasks(ctx context.Context, userID, 
 	}
 
 	return &model.DaySessionWithTasks{
-		Session: *session,
-		Tasks:   grouped,
+		Session:       *session,
+		Tasks:         grouped,
+		YesterdayDate: yesterdayDate,
 	}, nil
 }
 

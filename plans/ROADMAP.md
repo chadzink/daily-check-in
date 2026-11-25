@@ -19,6 +19,10 @@ flowchart TD
     M8["Fix 8: Stale Firebase Refresh Token Recovery<br>(PLAN-008)"]
     M9["Fix 9: Portable GCP IaC & GitHub CI/CD<br>(PLAN-009)"]
     M10["Fix 10: Production Firestore Client ADC<br>(PLAN-010)"]
+    M11["Milestone 11: User Feedback Fixes & Board UX<br>(PLAN-011)"]
+    M12["Milestone 12: Completed Tasks Cleanup, Reports & Ordering<br>(PLAN-012)"]
+    M13["Milestone 13: Relative Date Labels & Markdown Daily Notes<br>(PLAN-013)"]
+    M14["Milestone 14: Yesterday Fix, Collapsible Rows & Reorder<br>(PLAN-014)"]
 
     M1 --> M2
     M2 --> M3
@@ -29,6 +33,10 @@ flowchart TD
     M7 --> M8
     M8 --> M9
     M9 --> M10
+    M10 --> M11
+    M11 --> M12
+    M12 --> M13
+    M13 --> M14
 ```
 
 ---
@@ -176,3 +184,12 @@ flowchart TD
   - `frontend/src/utils/dateLabels.ts`, `standupGenerator.ts`, `YesterdayRow.tsx`, `TodayRow.tsx`.
   - `frontend/src/components/common/MarkdownNotesEditor.tsx`, `frontend/src/components/board/DailyNotesModal.tsx`, `DaySessionActionBar.tsx`, and Check-In/Check-Out wizard steps.
 - **Sign-Off:** **Implemented & QA Verified (Pending Merge Sign-Off)**.
+
+---
+
+### ✅ Milestone / Batch 14: Yesterday Fix, Collapsible Execution Rows & Board Reorder (PLAN-014)
+- **Focus:** Fix the multi-day Yesterday task accumulation bug by dynamically resolving completions from the last day with a completed task, add persistent collapsible/expandable execution rows, and reorder the board to **Today → Yesterday → Blocked → Backlog**.
+- **Deliverables:**
+  - `internal/service/day_session_service.go`, `ritual_service.go`, `report_service.go`, `calendar_service.go`, and `internal/model/domain.go` (`yesterday_date` + dynamic lookback + legacy `StatusYesterday` guards + regression tests).
+  - `frontend/src/components/board/ExecutionRow.tsx`, `DailyBoard.tsx`, `YesterdayRow.tsx`, and `frontend/src/types/domain.ts` (collapsible rows with `localStorage` persistence, `N`/`B` auto-expand, Yesterday date hint, and row reorder).
+- **Sign-Off:** **Implemented & QA Verified (Pending Merge Sign-Off)** (`test-reports/QA-REPORT-014-yesterday-fix-collapsible-rows-and-reorder-2026-11-25.md`).

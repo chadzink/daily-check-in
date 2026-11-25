@@ -39,3 +39,30 @@ export function getRelativeSectionLabels(
     isCurrentDay: false,
   };
 }
+
+/**
+ * Returns a concise formatted date hint (e.g. "Mon, Nov 23") when the resolved
+ * yesterday_date is older than calendar yesterday (selectedDate - 1 day).
+ * Returns undefined when yesterday_date matches calendar yesterday or is absent.
+ */
+export function getYesterdayDateHint(
+  selectedDateStr?: string | null,
+  yesterdayDateStr?: string | null
+): string | undefined {
+  if (!selectedDateStr || !yesterdayDateStr) {
+    return undefined;
+  }
+
+  const parsedSelected = parseISO(selectedDateStr);
+  const parsedYesterday = parseISO(yesterdayDateStr);
+  if (!isValid(parsedSelected) || !isValid(parsedYesterday)) {
+    return undefined;
+  }
+
+  const calendarYesterday = format(subDays(parsedSelected, 1), 'yyyy-MM-dd');
+  if (yesterdayDateStr === calendarYesterday) {
+    return undefined;
+  }
+
+  return format(parsedYesterday, 'EEE, MMM d');
+}

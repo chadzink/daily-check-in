@@ -185,11 +185,14 @@ func TestScenario2_SingleCallDaySessionJoinedQuerying(t *testing.T) {
 	}
 	require.NoError(t, taskRepo.Create(ctx, taskBlocked))
 
-	// 2. Commit DayTasks to DaySession (1 Yesterday, 2 Today, 1 Blocked)
+	// 2. Commit completed task on previous day (2026-08-27) and active tasks on target date (2026-08-28)
+	prevDate := "2026-08-27"
+	_, err := daySessionRepo.GetOrCreateByDate(ctx, userID, prevDate)
+	require.NoError(t, err)
 	yesterdayCompletion := time.Now().UTC().Add(-24 * time.Hour)
-	require.NoError(t, dayTaskRepo.Create(ctx, userID, date, &model.DayTask{
+	require.NoError(t, dayTaskRepo.Create(ctx, userID, prevDate, &model.DayTask{
 		TaskID:        taskYesterday.ID,
-		Status:        model.StatusYesterday,
+		Status:        model.StatusToday,
 		IsCompleted:   true,
 		CompletedAt:   &yesterdayCompletion,
 		PriorityOrder: 1,
@@ -224,7 +227,8 @@ func TestScenario2_SingleCallDaySessionJoinedQuerying(t *testing.T) {
 	// Assertions matching Gherkin Scenario 2
 	assert.Equal(t, date, joinedSession.Session.Date)
 
-	// Verify tasks.yesterday (length 1)
+	// Verify tasks.yesterday (dynamically resolved from previous day, length 1)
+	assert.Equal(t, prevDate, joinedSession.YesterdayDate)
 	require.Len(t, joinedSession.Tasks.Yesterday, 1)
 	assert.Equal(t, taskYesterday.ID, joinedSession.Tasks.Yesterday[0].TaskID)
 	assert.Equal(t, "Yesterday Accomplishment", joinedSession.Tasks.Yesterday[0].Title)

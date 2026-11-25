@@ -17,6 +17,8 @@ interface BacklogRowProps {
   onOpenDetailedAdd?: () => void;
   isAddingTask?: boolean;
   quickAddRef?: React.RefObject<HTMLInputElement>;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export const BacklogRow: React.FC<BacklogRowProps> = ({
@@ -31,6 +33,8 @@ export const BacklogRow: React.FC<BacklogRowProps> = ({
   onOpenDetailedAdd,
   isAddingTask = false,
   quickAddRef,
+  isCollapsed = false,
+  onToggleCollapse,
 }) => {
   const cardDataList: TaskCardData[] = tasks.map((t, idx) => ({
     id: t.id,
@@ -50,6 +54,8 @@ export const BacklogRow: React.FC<BacklogRowProps> = ({
       count={tasks.length}
       icon={<Layers className="h-4 w-4" />}
       accentColor="violet"
+      isCollapsed={isCollapsed}
+      onToggleCollapse={onToggleCollapse}
       emptyMessage="Global backlog is empty. Add tasks to pull into daily execution."
       headerAction={
         <QuickAddInput
