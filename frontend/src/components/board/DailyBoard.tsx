@@ -24,7 +24,7 @@ import { BlockerReasonModal } from './BlockerReasonModal';
 import { EditTaskModal } from './EditTaskModal';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { DailyNotesModal } from './DailyNotesModal';
-import { getRelativeSectionLabels } from '../../utils/dateLabels';
+import { getRelativeSectionLabels, getYesterdayDateHint } from '../../utils/dateLabels';
 import { DaySessionActionBar } from './DaySessionActionBar';
 import { MorningCheckInBanner } from './MorningCheckInBanner';
 import { MorningCheckInModal } from '../wizards/MorningCheckInModal';
@@ -37,6 +37,33 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 interface DailyBoardProps {
   date: string;
   isReadOnly?: boolean;
+}
+
+type ExecutionRowKey = 'TODAY' | 'YESTERDAY' | 'BLOCKED' | 'BACKLOG';
+
+const COLLAPSED_ROWS_STORAGE_KEY = 'dailycheckin_collapsed_rows';
+
+const DEFAULT_COLLAPSED_ROWS: Record<ExecutionRowKey, boolean> = {
+  TODAY: false,
+  YESTERDAY: false,
+  BLOCKED: false,
+  BACKLOG: false,
+};
+
+function loadCollapsedRows(): Record<ExecutionRowKey, boolean> {
+  try {
+    const raw = window.localStorage.getItem(COLLAPSED_ROWS_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_COLLAPSED_ROWS };
+    const parsed = JSON.parse(raw) as Partial<Record<ExecutionRowKey, unknown>>;
+    return {
+      TODAY: Boolean(parsed.TODAY),
+      YESTERDAY: Boolean(parsed.YESTERDAY),
+      BLOCKED: Boolean(parsed.BLOCKED),
+      BACKLOG: Boolean(parsed.BACKLOG),
+    };
+  } catch {
+    return { ...DEFAULT_COLLAPSED_ROWS };
+  }
 }
 
 export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
@@ -66,6 +93,25 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
   const archiveTaskMutation = useArchiveTask(date);
   const updateDayNotesMutation = useUpdateDayNotes(date);
   const { yesterdayLabel, todayLabel } = getRelativeSectionLabels(date);
+  const yesterdayDateHint = getYesterdayDateHint(date, daySession?.yesterday_date);
+
+  // Collapsible row state persisted in localStorage
+  const [collapsedRows, setCollapsedRows] = useState<Record<ExecutionRowKey, boolean>>(loadCollapsedRows);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(COLLAPSED_ROWS_STORAGE_KEY, JSON.stringify(collapsedRows));
+    } catch {
+      // Ignore storage errors (e.g. private browsing / quota exceeded)
+    }
+  }, [collapsedRows]);
+
+  const toggleRowCollapse = (row: ExecutionRowKey) => {
+    setCollapsedRows((prev) => ({
+      ...prev,
+      [row]: !prev[row],
+    }));
+  };
 
   // Blocker modal state
   const [blockerModalState, setBlockerModalState] = useState<{
@@ -122,10 +168,20 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
 
       if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
-        todayQuickAddRef.current?.focus();
+        if (collapsedRows.TODAY) {
+          setCollapsedRows((prev) => ({ ...prev, TODAY: false }));
+          setTimeout(() => todayQuickAddRef.current?.focus(), 0);
+        } else {
+          todayQuickAddRef.current?.focus();
+        }
       } else if (e.key === 'b' || e.key === 'B') {
         e.preventDefault();
-        backlogQuickAddRef.current?.focus();
+        if (collapsedRows.BACKLOG) {
+          setCollapsedRows((prev) => ({ ...prev, BACKLOG: false }));
+          setTimeout(() => backlogQuickAddRef.current?.focus(), 0);
+        } else {
+          backlogQuickAddRef.current?.focus();
+        }
       } else if (e.key === 'p' || e.key === 'P') {
         e.preventDefault();
         // Pull top item from Backlog
@@ -138,7 +194,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [backlog, pullBacklogTask]);
+  }, [backlog, pullBacklogTask, collapsedRows.TODAY, collapsedRows.BACKLOG]);
 
   const moveItemToIndex = <T,>(items: T[], fromIndex: number, toIndex: number): T[] | null => {
     if (
@@ -344,14 +400,13 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
         data-testid="daily-board-rows"
         className="flex flex-col gap-5"
       >
-        {/* Row 1: Yesterday */}
-        <YesterdayRow tasks={daySession?.tasks?.yesterday || []} title={yesterdayLabel} />
-
-        {/* Row 2: Today */}
+        {/* Row 1: Today */}
         <TodayRow
           tasks={daySession?.tasks?.today || []}
           title={todayLabel}
           isReadOnly={isHistorical}
+          isCollapsed={collapsedRows.TODAY}
+          onToggleCollapse={() => toggleRowCollapse('TODAY')}
           onToggleComplete={(dayTaskId, isCompleted) =>
             toggleComplete.mutate({ dayTaskId, isCompleted })
           }
@@ -368,10 +423,21 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
           quickAddRef={todayQuickAddRef}
         />
 
+        {/* Row 2: Yesterday */}
+        <YesterdayRow
+          tasks={daySession?.tasks?.yesterday || []}
+          title={yesterdayLabel}
+          subtitle={yesterdayDateHint}
+          isCollapsed={collapsedRows.YESTERDAY}
+          onToggleCollapse={() => toggleRowCollapse('YESTERDAY')}
+        />
+
         {/* Row 3: Blocked */}
         <BlockedRow
           tasks={daySession?.tasks?.blocked || []}
           isReadOnly={isHistorical}
+          isCollapsed={collapsedRows.BLOCKED}
+          onToggleCollapse={() => toggleRowCollapse('BLOCKED')}
           onToggleComplete={(dayTaskId, isCompleted) =>
             toggleComplete.mutate({ dayTaskId, isCompleted })
           }
@@ -390,6 +456,8 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
         {/* Row 4: Backlog */}
         <BacklogRow
           tasks={uncommittedBacklogTasks}
+          isCollapsed={collapsedRows.BACKLOG}
+          onToggleCollapse={() => toggleRowCollapse('BACKLOG')}
           onPull={(taskId) => pullBacklogTask.mutate({ taskId, status: 'TODAY' })}
           onMoveUp={(index) => handleMoveBacklogTask(uncommittedBacklogTasks, index, -1)}
           onMoveDown={(index) => handleMoveBacklogTask(uncommittedBacklogTasks, index, 1)}

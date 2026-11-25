@@ -19,6 +19,8 @@ interface BlockedRowProps {
   onOpenDetailedAdd?: () => void;
   isAddingTask?: boolean;
   isReadOnly?: boolean;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export const BlockedRow: React.FC<BlockedRowProps> = ({
@@ -35,6 +37,8 @@ export const BlockedRow: React.FC<BlockedRowProps> = ({
   onOpenDetailedAdd,
   isAddingTask = false,
   isReadOnly = false,
+  isCollapsed = false,
+  onToggleCollapse,
 }) => {
   const cardDataList: TaskCardData[] = tasks.map((t, idx) => ({
     id: t.day_task_id,
@@ -55,6 +59,8 @@ export const BlockedRow: React.FC<BlockedRowProps> = ({
       count={tasks.length}
       icon={<AlertTriangle className="h-4 w-4" />}
       accentColor="amber"
+      isCollapsed={isCollapsed}
+      onToggleCollapse={onToggleCollapse}
       emptyMessage={
         isReadOnly
           ? 'No blocked tasks were recorded for this day.'

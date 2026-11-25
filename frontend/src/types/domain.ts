@@ -49,6 +49,7 @@ export interface DayTasksGrouped {
 export interface DaySessionWithTasks {
   session: DaySession;
   tasks: DayTasksGrouped;
+  yesterday_date?: string;
 }
 
 export interface BacklogResponse {
@@ -114,6 +115,7 @@ export interface RolloverDecision {
 export interface CheckInContextResponse {
   target_date: string;
   previous_date?: string;
+  yesterday_date?: string;
   yesterday_tasks: DayTaskWithDetails[];
   rollover_candidates: DayTaskWithDetails[];
   backlog_tasks: MasterTask[];

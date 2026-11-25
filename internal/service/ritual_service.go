@@ -60,9 +60,17 @@ func (s *ritualService) GetMorningCheckInContext(ctx context.Context, userID, da
 	rolloverCandidates := make([]model.DayTaskWithDetails, 0)
 	backlogTasks := make([]*model.Task, 0)
 
-	// 3. Look backward up to 30 days to identify the most recent active session
+	// 3. Dynamically resolve Yesterday's completed tasks from the most recent prior day with completions
+	yesterdayDate, resolvedYesterday, err := resolveYesterdayCompletedTasks(
+		ctx, s.daySessionRepo, s.dayTaskRepo, s.taskRepo, userID, date,
+	)
+	if err == nil {
+		yesterdayTasks = resolvedYesterday
+	}
+
+	// 4. Look backward up to 30 days to identify the most recent active session for rollover candidates
 	previousDate := ""
-	recentSessions, err := s.daySessionRepo.ListBeforeDate(ctx, userID, date, 30)
+	recentSessions, err := s.daySessionRepo.ListBeforeDate(ctx, userID, date, yesterdayLookbackLimit)
 	if err == nil {
 		for _, sess := range recentSessions {
 			if sess.CheckInAt != nil {
@@ -72,13 +80,17 @@ func (s *ritualService) GetMorningCheckInContext(ctx context.Context, userID, da
 		}
 	}
 
-	// 4. If a previous active date was located, extract yesterday's completed and incomplete tasks
+	// 5. If a previous active date was located, extract incomplete rollover candidates (excluding StatusYesterday)
 	if previousDate != "" {
 		prevDayTasks, err := s.dayTaskRepo.ListByDate(ctx, userID, previousDate)
 		if err == nil && len(prevDayTasks) > 0 {
-			// Extract task IDs for batch retrieval
+			incompleteTasks := make([]*model.DayTask, 0)
 			taskIDs := make([]string, 0, len(prevDayTasks))
 			for _, dt := range prevDayTasks {
+				if dt.Status == model.StatusYesterday || dt.IsCompleted {
+					continue
+				}
+				incompleteTasks = append(incompleteTasks, dt)
 				if dt.TaskID != "" {
 					taskIDs = append(taskIDs, dt.TaskID)
 				}
@@ -89,7 +101,7 @@ func (s *ritualService) GetMorningCheckInContext(ctx context.Context, userID, da
 				tasksMap = make(map[string]*model.Task)
 			}
 
-			for _, dt := range prevDayTasks {
+			for _, dt := range incompleteTasks {
 				var title, description string
 				if masterTask, ok := tasksMap[dt.TaskID]; ok {
 					title = masterTask.Title
@@ -113,17 +125,12 @@ func (s *ritualService) GetMorningCheckInContext(ctx context.Context, userID, da
 					PriorityOrder: dt.PriorityOrder,
 					BlockerReason: blockerPtr,
 				}
-
-				if dt.IsCompleted {
-					yesterdayTasks = append(yesterdayTasks, item)
-				} else {
-					rolloverCandidates = append(rolloverCandidates, item)
-				}
+				rolloverCandidates = append(rolloverCandidates, item)
 			}
 		}
 	}
 
-	// 5. Fetch unassigned active tasks from Global Backlog
+	// 6. Fetch unassigned active tasks from Global Backlog
 	allBacklog, err := s.taskRepo.ListBacklog(ctx, userID)
 	if err == nil {
 		for _, t := range allBacklog {
@@ -136,6 +143,7 @@ func (s *ritualService) GetMorningCheckInContext(ctx context.Context, userID, da
 	return &model.CheckInContextResponse{
 		TargetDate:         date,
 		PreviousDate:       previousDate,
+		YesterdayDate:      yesterdayDate,
 		YesterdayTasks:     yesterdayTasks,
 		RolloverCandidates: rolloverCandidates,
 		BacklogTasks:       backlogTasks,
@@ -174,9 +182,8 @@ func (s *ritualService) ExecuteMorningCheckIn(ctx context.Context, userID, date 
 		return nil, fmt.Errorf("failed to stamp check-in on session: %w", err)
 	}
 
-	// 3. Process previous active workday's completed tasks into Yesterday row
-	// Find previous date to copy completed accomplishments
-	recentSessions, _ := s.daySessionRepo.ListBeforeDate(ctx, userID, date, 30)
+	// 3. Locate previous active workday for RolloverCompleted updates (Yesterday row is resolved dynamically)
+	recentSessions, _ := s.daySessionRepo.ListBeforeDate(ctx, userID, date, yesterdayLookbackLimit)
 	var prevDate string
 	for _, sess := range recentSessions {
 		if sess.CheckInAt != nil {
@@ -185,58 +192,45 @@ func (s *ritualService) ExecuteMorningCheckIn(ctx context.Context, userID, date 
 		}
 	}
 
-	// Map of tasks already committed to today to prevent duplicate records
+	var prevDayTasks []*model.DayTask
+	if prevDate != "" {
+		prevDayTasks, _ = s.dayTaskRepo.ListByDate(ctx, userID, prevDate)
+	}
+
+	// Map of tasks already committed to today to prevent duplicate records (ignoring legacy StatusYesterday)
 	existingTodayTasks, _ := s.dayTaskRepo.ListByDate(ctx, userID, date)
 	existingTaskIDs := make(map[string]bool)
 	for _, dt := range existingTodayTasks {
-		existingTaskIDs[dt.TaskID] = true
-	}
-
-	if prevDate != "" {
-		prevDayTasks, _ := s.dayTaskRepo.ListByDate(ctx, userID, prevDate)
-		for _, dt := range prevDayTasks {
-			if dt.IsCompleted && !existingTaskIDs[dt.TaskID] {
-				yesterdayDT := &model.DayTask{
-					ID:            uuid.New().String(),
-					DaySessionID:  date,
-					TaskID:        dt.TaskID,
-					Status:        model.StatusYesterday,
-					IsCompleted:   true,
-					CompletedAt:   dt.CompletedAt,
-					PriorityOrder: dt.PriorityOrder,
-					CreatedAt:     now,
-					UpdatedAt:     now,
-				}
-				_ = s.dayTaskRepo.Create(ctx, userID, date, yesterdayDT)
-				existingTaskIDs[dt.TaskID] = true
-			}
+		if dt.Status == model.StatusYesterday {
+			continue
 		}
+		existingTaskIDs[dt.TaskID] = true
 	}
 
 	// 4. Process Rollover Decisions
 	for _, decision := range req.RolloverDecisions {
 		switch decision.Action {
 		case model.RolloverCompleted:
-			// Marked complete late: update master task and record in Yesterday row
+			// Marked complete late: update master task and mark the prior day's DayTask completed
+			// (dynamic Yesterday resolution will surface it without persisting a StatusYesterday copy)
 			if masterTask, err := s.taskRepo.GetByID(ctx, userID, decision.TaskID); err == nil && masterTask != nil {
 				masterTask.IsCompleted = true
 				masterTask.CompletedAt = &now
 				_ = s.taskRepo.Update(ctx, masterTask)
 			}
-			if !existingTaskIDs[decision.TaskID] {
-				yesterdayDT := &model.DayTask{
-					ID:            uuid.New().String(),
-					DaySessionID:  date,
-					TaskID:        decision.TaskID,
-					Status:        model.StatusYesterday,
-					IsCompleted:   true,
-					CompletedAt:   &now,
-					PriorityOrder: 0,
-					CreatedAt:     now,
-					UpdatedAt:     now,
+			if prevDate != "" {
+				for _, dt := range prevDayTasks {
+					if dt.Status == model.StatusYesterday {
+						continue
+					}
+					if (decision.DayTaskID != "" && dt.ID == decision.DayTaskID) ||
+						(decision.TaskID != "" && dt.TaskID == decision.TaskID) {
+						dt.IsCompleted = true
+						dt.CompletedAt = &now
+						_ = s.dayTaskRepo.Update(ctx, userID, prevDate, dt)
+						break
+					}
 				}
-				_ = s.dayTaskRepo.Create(ctx, userID, date, yesterdayDT)
-				existingTaskIDs[decision.TaskID] = true
 			}
 		case model.RolloverDemote:
 			// Demoted: do not schedule for today (master task remains uncommitted in backlog)

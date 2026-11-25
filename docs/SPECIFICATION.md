@@ -32,8 +32,8 @@ The application organizes tasks into four distinct core sections:
 
 | Section / Bucket | Description | Completion Behavior |
 | :--- | :--- | :--- |
-| **Yesterday** | Tasks completed on the previous active workday (`is_completed = true`). Serves as a record of accomplishments. | Read/review accomplishments. |
 | **Today** | The active, strictly prioritized list of tasks targeted for the current workday. | Checkbox toggles `is_completed` and stamps `completed_at` on both `DayTask` and master `Task`. |
+| **Yesterday** | Tasks completed on the most recent prior day that had at least one completed task (`is_completed = true`), resolved dynamically with optional `yesterday_date` hint when older than calendar yesterday. | Read/review accomplishments. |
 | **Blocked** | Tasks paused due to an external dependency or waiting on a change. | Includes blocker explanation; unblocking moves task to *Today* or returns it to the global *Backlog*. |
 | **Backlog** | Persistent, cross-day pool of unscheduled, incomplete master tasks (`is_archived = false`, `is_completed = false`). | Can be prioritized globally (new tasks insert at `#1`) and pulled into *Today* during morning check-in or dynamically throughout the workday. |
 
@@ -48,22 +48,22 @@ The application organizes tasks into four distinct core sections:
 |                     22 23[24]25 26 27 28  |                                                             |
 |                     29 30 31 [Jump Today] |                                                             |
 +=========================================================================================================+
-| ROW 1: YESTERDAY (Completed Accomplishments from Previous Day)                                          |
-|---------------------------------------------------------------------------------------------------------|
-|  [✓] Review PR #104 (Completed 04:30 PM)                                                                |
-|  [✓] Deploy staging migration (Completed 05:15 PM)                                                      |
-+=========================================================================================================+
-| ROW 2: TODAY (Actively Prioritized Work)                                          [+ Add Task to Today] |
+| v ROW 1: TODAY (Actively Prioritized Work)                                        [+ Add Task to Today] |
 |---------------------------------------------------------------------------------------------------------|
 |  ::  1. [ ] Implement top-left calendar UI widget                             (High Priority)           |
 |  ::  2. [ ] Build morning check-in wizard modal                               (Medium Priority)         |
 |  ::  3. [ ] Connect Firestore day_tasks sync                                  (Medium Priority)         |
 +=========================================================================================================+
-| ROW 3: BLOCKED (Waiting on Dependencies)                                                                |
+| v ROW 2: YESTERDAY (Completed Accomplishments from Last Completed Day)                                  |
+|---------------------------------------------------------------------------------------------------------|
+|  [✓] Review PR #104 (Completed 04:30 PM)                                                                |
+|  [✓] Deploy staging migration (Completed 05:15 PM)                                                      |
++=========================================================================================================+
+| v ROW 3: BLOCKED (Waiting on Dependencies)                                                              |
 |---------------------------------------------------------------------------------------------------------|
 |  [!] Auth token refresh glitch              | REASON: Waiting on Firebase Admin SDK update (PR #52)     |
 +=========================================================================================================+
-| ROW 4: BACKLOG (Future Work Pool)                                               [+ Add Task to Backlog] |
+| v ROW 4: BACKLOG (Future Work Pool)                                             [+ Add Task to Backlog] |
 |---------------------------------------------------------------------------------------------------------|
 |  ::  - Add dark mode theme support                                                                      |
 |  ::  - Add weekly accomplishments rollup export                                                         |
@@ -85,9 +85,10 @@ The application organizes tasks into four distinct core sections:
    - Displays Check-In and Check-Out status and timestamps for the selected day.
    - Displays a Daily Notes icon button (outline when empty, green-filled when notes exist) opening a Markdown-enabled Daily Notes modal (editable on today's session, read-only preview on historical dates).
    - Action buttons: "Start Check-In" (if not checked in), "Check-Out" (if day is active), and "Export Standup".
-4. **4-Row Daily Layout:**
-   - **Row 1 - Yesterday (or relative formatted date on non-current days):** Displays tasks marked completed on the previous active workday (read-only).
-   - **Row 2 - Today (or relative formatted date on non-current days):** The active, ordered list for the current day with a wide inline Quick Add + **Details** modal button (new tasks insert at `#1`), Up/Down arrow buttons, clickable `#N` jump-to-index rank badge, Edit/Delete modals, and a "Mark as Blocked" icon button. Checkbox immediately stamps `completed_at` via `PATCH /api/days/:date/tasks/:id`.
+4. **4-Row Collapsible Daily Layout:**
+   - All 4 rows support collapsing/expanding via an accessible header toggle (`aria-expanded`, rotating chevron, persistent count pill) with state persisted in `localStorage` across reloads and date changes. Collapsing hides the task list and inline Quick Add bar (`N`/`B` shortcuts auto-expand and focus).
+   - **Row 1 - Today (or relative formatted date on non-current days):** The active, ordered list for the current day with a wide inline Quick Add + **Details** modal button (new tasks insert at `#1`), Up/Down arrow buttons, clickable `#N` jump-to-index rank badge, Edit/Delete modals, and a "Mark as Blocked" icon button. Checkbox immediately stamps `completed_at` via `PATCH /api/days/:date/tasks/:id`.
+   - **Row 2 - Yesterday (or relative formatted date on non-current days):** Dynamically displays tasks marked completed on the most recent prior day with at least one completed task (read-only), with a subtle muted date hint (e.g., `· Mon, Nov 23`) when older than calendar yesterday.
    - **Row 3 - Blocked:** Tasks marked as blocked, with visible blocker explanation chip/text, Quick Add + **Details** modal, Up/Down & `#N` jump-to-index ordering, Edit/Delete modals, and 1-click Unblock.
    - **Row 4 - Backlog:** Persistent global pool of incomplete, unarchived master tasks (`is_completed = false`, `is_archived = false`), with wide inline Quick Add + **Details** modal (new tasks insert at `#1`), Up/Down & `#N` jump-to-index ordering, Edit/Delete modals, and 1-click "Pull into Today" quick actions.
 

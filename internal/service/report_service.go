@@ -86,7 +86,7 @@ func (s *reportService) GetCompletedTasksReport(ctx context.Context, userID, sta
 			}
 			var local []dateTaskPair
 			for _, dt := range dayTasks {
-				if dt.IsCompleted {
+				if dt.IsCompleted && dt.Status != model.StatusYesterday {
 					local = append(local, dateTaskPair{date: date, dayTask: dt})
 				}
 			}

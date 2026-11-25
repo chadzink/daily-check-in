@@ -83,7 +83,12 @@ func (s *calendarService) GetMonthSummary(ctx context.Context, userID, month str
 				return
 			}
 			completed := 0
+			total := 0
 			for _, dt := range dayTasks {
+				if dt.Status == model.StatusYesterday {
+					continue
+				}
+				total++
 				if dt.IsCompleted {
 					completed++
 				}
@@ -91,7 +96,7 @@ func (s *calendarService) GetMonthSummary(ctx context.Context, userID, month str
 			mu.Lock()
 			countsMap[date] = taskCounts{
 				completed: completed,
-				total:     len(dayTasks),
+				total:     total,
 			}
 			mu.Unlock()
 		}(sess.Date)

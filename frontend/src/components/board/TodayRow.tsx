@@ -21,6 +21,8 @@ interface TodayRowProps {
   isAddingTask?: boolean;
   quickAddRef?: React.RefObject<HTMLInputElement>;
   isReadOnly?: boolean;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export const TodayRow: React.FC<TodayRowProps> = ({
@@ -39,6 +41,8 @@ export const TodayRow: React.FC<TodayRowProps> = ({
   isAddingTask = false,
   quickAddRef,
   isReadOnly = false,
+  isCollapsed = false,
+  onToggleCollapse,
 }) => {
   const cardDataList: TaskCardData[] = tasks.map((t, idx) => ({
     id: t.day_task_id,
@@ -59,6 +63,8 @@ export const TodayRow: React.FC<TodayRowProps> = ({
       count={tasks.length}
       icon={<Target className="h-4 w-4" />}
       accentColor="sky"
+      isCollapsed={isCollapsed}
+      onToggleCollapse={onToggleCollapse}
       emptyMessage={
         isReadOnly
           ? 'No tasks were recorded for this day.'
