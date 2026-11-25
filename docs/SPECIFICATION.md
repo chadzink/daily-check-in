@@ -35,7 +35,7 @@ The application organizes tasks into four distinct core sections:
 | **Yesterday** | Tasks completed on the previous active workday (`is_completed = true`). Serves as a record of accomplishments. | Read/review accomplishments. |
 | **Today** | The active, strictly prioritized list of tasks targeted for the current workday. | Checkbox toggles `is_completed` and stamps `completed_at` on both `DayTask` and master `Task`. |
 | **Blocked** | Tasks paused due to an external dependency or waiting on a change. | Includes blocker explanation; unblocking moves task to *Today* or returns it to the global *Backlog*. |
-| **Backlog** | Persistent, cross-day pool of unscheduled master tasks. Managed globally rather than duplicated per day session. | Can be prioritized globally and pulled into *Today* during morning check-in or dynamically throughout the workday when work items run low. |
+| **Backlog** | Persistent, cross-day pool of unscheduled, incomplete master tasks (`is_archived = false`, `is_completed = false`). | Can be prioritized globally (new tasks insert at `#1`) and pulled into *Today* during morning check-in or dynamically throughout the workday. |
 
 ```
 +---------------------------------------------------------------------------------------------------------+
@@ -73,8 +73,9 @@ The application organizes tasks into four distinct core sections:
 ### 2.1 UI Components
 1. **Top Navigation Bar:**
    - App title/branding.
-   - Current active date display with indicators (e.g., green dot if checked in, yellow if pending check-in).
-   - User profile / settings / standup export button.
+   - **Reports** button opening the Completed Tasks Report modal (date-range filter + CSV export).
+   - Interactive Calendar widget with date picker and check-in indicators.
+   - Logout button.
 2. **Top-Left Interactive Calendar:**
    - Month view with date picker.
    - Visual dots/markers on days indicating check-in status (e.g., completed check-in, missed, or future).
@@ -82,12 +83,12 @@ The application organizes tasks into four distinct core sections:
    - "Jump to Today" quick button.
 3. **Day Session Action Bar:**
    - Displays Check-In and Check-Out status and timestamps for the selected day.
-   - Action buttons: "Start Check-In" (if not checked in) or "Check-Out" (if day is active).
+   - Action buttons: "Start Check-In" (if not checked in), "Check-Out" (if day is active), and "Export Standup".
 4. **4-Row Daily Layout:**
-   - **Row 1 - Yesterday:** Displays tasks marked completed on the previous active workday.
-   - **Row 2 - Today:** The active, ordered list for the current day with inline "+ Add Task". Supports drag-and-drop or up/down ordering. Checkbox immediately stamps `completed_at`.
-   - **Row 3 - Blocked:** Tasks marked as blocked, with visible blocker explanation chip/text.
-   - **Row 4 - Backlog:** Persistent global pool of unassigned master tasks available to pull into any day, with inline "+ Add to Backlog", drag-and-drop prioritization, and 1-click "Pull into Today" quick actions.
+   - **Row 1 - Yesterday:** Displays tasks marked completed on the previous active workday (read-only).
+   - **Row 2 - Today:** The active, ordered list for the current day with a wide inline Quick Add + **Details** modal button (new tasks insert at `#1`), Up/Down arrow buttons, clickable `#N` jump-to-index rank badge, Edit/Delete modals, and a "Mark as Blocked" icon button. Checkbox immediately stamps `completed_at` via `PATCH /api/days/:date/tasks/:id`.
+   - **Row 3 - Blocked:** Tasks marked as blocked, with visible blocker explanation chip/text, Quick Add + **Details** modal, Up/Down & `#N` jump-to-index ordering, Edit/Delete modals, and 1-click Unblock.
+   - **Row 4 - Backlog:** Persistent global pool of incomplete, unarchived master tasks (`is_completed = false`, `is_archived = false`), with wide inline Quick Add + **Details** modal (new tasks insert at `#1`), Up/Down & `#N` jump-to-index ordering, Edit/Delete modals, and 1-click "Pull into Today" quick actions.
 
 ---
 
@@ -127,15 +128,15 @@ flowchart TD
 ### 3.2 Throughout the Workday
 - **Story:** As a user working through the day, I want to track my progress and organize incoming work with minimal friction, pulling new tasks from my backlog whenever current work items run low.
 - **Dynamic Task Creation:**
-  - **Add to Today:** Quick-add tasks directly to the *Today* list. Creates a master `Task` and an active `DayTask` linked to the current `DaySession` with status `TODAY`.
-  - **Add to Backlog:** Quick-add tasks directly to the *Backlog* pool to capture incoming requests, ideas, or future work without disrupting today's focus (creates an uncommitted master `Task` in the global backlog).
+  - **Add to Today / Blocked:** Quick-add or Detailed Add (title + description modal) creates a master `Task` and an active `DayTask` linked to the current `DaySession`, inserting at position `#1` and shifting existing items down.
+  - **Add to Backlog:** Quick-add or Detailed Add creates an uncommitted master `Task` at `backlog_order = 1` and shifts existing backlog items down.
 - **Sorting & Prioritization:**
-  - **Today List Sorting:** Full manual drag-and-drop / rank reordering (1..N priority order) so the highest-priority work stays on top.
-  - **Backlog List Sorting:** Full manual drag-and-drop / priority reordering across the global backlog (`backlog_order`), with optional sort presets (e.g., creation date, manual priority rank).
+  - **Today, Blocked & Backlog List Sorting:** Up/Down arrow buttons and clickable `#N` jump-to-index positioning (`1..N` priority order) so any item can be moved to an exact rank.
 - **Mid-Day Backlog Pulls (Low Workload Acceleration):**
-  - Whenever active *Today* tasks run low or finish early, users can instantly pull items from the global Backlog into *Today* via drag-and-drop, the inline "Pull into Today" button, or keyboard shortcut (`P`).
+  - Whenever active *Today* tasks run low or finish early, users can instantly pull items from the global Backlog into *Today* via the inline "Pull" button or keyboard shortcut (`P`).
   - Pulling an item creates an active `DayTask` record for the current day session without modifying or duplicating the backlog history.
-  - When all *Today* items are completed, the UI displays a subtle "Ready for more? Pull top item from Backlog" helper.
+- **Completed Tasks Report & CSV Export:**
+  - Users can open the **Reports** modal from the top navigation bar to filter completed tasks across any date range (defaulting to the last 7 days) via `GET /api/reports/completed` and export all 12 task/day-task fields as an RFC 4180 `.csv` file.
 - **Task Lifecycle Actions:**
   - **Complete a Task:** Checking off a task sets `is_completed = true` and `completed_at = now()` on the `day_tasks` entry and sets `is_completed = true` and `completed_at = now()` on the master `tasks` record.
   - **Uncomplete a Task:** Unchecking sets `is_completed = false` and `completed_at = NULL` on both records.
@@ -459,6 +460,31 @@ All error responses from the Echo backend follow a unified JSON envelope:
 }
 ```
 
+#### `GET /api/reports/completed?start=YYYY-MM-DD&end=YYYY-MM-DD`
+- **Response `200 OK`:**
+```json
+{
+  "start_date": "2026-11-18",
+  "end_date": "2026-11-24",
+  "total_count": 1,
+  "tasks": [
+    {
+      "day_task_id": "dt-1",
+      "task_id": "t-1",
+      "date": "2026-11-24",
+      "title": "Shipped Feature",
+      "description": "Details",
+      "status": "TODAY",
+      "is_completed": true,
+      "completed_at": "2026-11-24T12:00:00Z",
+      "priority_order": 1,
+      "created_at": "2026-11-24T09:00:00Z",
+      "updated_at": "2026-11-24T12:00:00Z"
+    }
+  ]
+}
+```
+
 ---
 
 ## 6. Timezone Strategy, Edge Cases & Business Rules
@@ -495,9 +521,9 @@ All error responses from the Echo backend follow a unified JSON envelope:
 ## 8. Technology Stack
 
 ### Backend
-- **Language**: Golang (1.23+)
+- **Language**: Golang (1.25+)
 - **API Framework**: Echo (`github.com/labstack/echo/v4`)
-- **Database & Auth**: Google Cloud Firebase (Firestore & Firebase Admin SDK)
+- **Database & Auth**: Google Cloud Firebase (Firestore using ADC in production / Emulator locally & Firebase Admin SDK)
 - **Static Asset Embedding**: Go `embed.FS` (embeds Vite React production build into single executable binary)
 
 ### Frontend
@@ -508,22 +534,19 @@ All error responses from the Echo backend follow a unified JSON envelope:
 - **State Management**:
   - **Global UI State**: React Context (active date, current user/auth state, modal visibility)
   - **Server State & Caching**: TanStack Query / React Query (optimistic UI updates, caching, background refetching)
-- **Drag & Drop**: `@hello-pangea/dnd` (accessible drag-and-drop list reordering for Today and Backlog)
+- **Ordering**: Accessible Up/Down arrow buttons & clickable `#N` jump-to-index controls
 - **Date Utilities**: `date-fns`
 - **Icons**: Lucide React (`lucide-react`)
 - **API Client**: Fetch (typed client wrapper with Firebase ID Token injection)
-- **Routing**: React Router (`react-router-dom`)
 
 ### Infrastructure & DevOps
-- **Database**: Google Cloud Firestore
-- **Authentication**: Firebase Authentication with Google Auth
-- **Hosting / Compute**: Google Cloud Run (Fully managed serverless container runtime, scales to zero)
-- **Containerization**: Multi-stage Dockerfile (Node.js for Vite build + Golang for binary build $\rightarrow$ Scratch/Alpine runner)
-- **Local Dev Environment**: Docker Compose with Firebase Local Emulator Suite (Firestore & Auth emulators for 100% offline local development)
-- **Build Automation**: Makefile (`make dev`, `make build`, `make test`, `make docker-build`, `make emulators`)
-- **Version Control**: GitHub
-- **CI/CD**: GitHub Actions (lint, test, build container, and deploy to Google Cloud Run)
-- **File Storage**: Local filesystem (dev), Google Cloud Storage (prod)
+- **Database**: Google Cloud Firestore (Native mode in `us-central1`)
+- **Authentication**: Firebase Authentication (Email/Password)
+- **Hosting / Compute**: Google Cloud Run v2 (Fully managed serverless container runtime, scales to zero, `APP_ENV=production` ADC)
+- **Infrastructure as Code**: Terraform (`infra/terraform/`) with GCS remote state & Always-Free Tier defaults
+- **Containerization**: Multi-stage Dockerfile (Node.js for Vite build + Golang 1.25+ for binary build $\rightarrow$ Alpine runner)
+- **Local Dev Environment**: Docker Compose with Firebase Local Emulator Suite (Firestore on `:8085` & Auth on `:9099`)
+- **CI/CD**: GitHub Actions (lint, test, Docker `<45MB` audit, keyless Workload Identity Federation OIDC deploy to Cloud Run & Firestore rules/indexes)
 
 ---
 
@@ -668,7 +691,16 @@ DailyCheckIn/
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "day_tasks",
+      "fieldPath": "id",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    }
+  ]
 }
 ```
 
@@ -681,7 +713,7 @@ DailyCheckIn/
 | `PORT` | Server listening port | `8080` | `8080` (injected by Cloud Run) |
 | `APP_ENV` | Environment identifier | `development` | `production` |
 | `FIREBASE_PROJECT_ID` | GCP / Firebase Project ID | `dailycheckin-local` | `dailycheckin-prod` |
-| `FIRESTORE_EMULATOR_HOST` | Local Firestore emulator host | `localhost:8080` | *Unset* |
+| `FIRESTORE_EMULATOR_HOST` | Local Firestore emulator host | `localhost:8085` | *Unset* |
 | `FIREBASE_AUTH_EMULATOR_HOST` | Local Auth emulator host | `localhost:9099` | *Unset* |
 | `GOOGLE_APPLICATION_CREDENTIALS`| Service account key path | *Unset (uses emulators)*| Default GCP Service Account |
 

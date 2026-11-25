@@ -10,9 +10,10 @@ A personal morning ritual and daily execution tool designed for technology and k
 - **🌆 End-of-Day Check-Out Ritual:** Review incomplete tasks, demote unfinished work back to the global backlog or roll over, and record daily reflections.
 - **📋 4-Row Daily Execution Board:**
   - **Yesterday:** Read-only accomplishments from the previous active workday.
-  - **Today:** Actively prioritized list (1..N order) with instant completion timestamps.
-  - **Blocked:** Track blocked items with explicit blocker reasons.
-  - **Backlog:** Persistent, cross-day master backlog pool that can be pulled into *Today* at any point.
+  - **Today:** Actively prioritized list (`1..N` order) with instant completion timestamps, Up/Down arrow & `#N` jump-to-index reordering, edit/delete modals, and a quick "Mark as Blocked" action.
+  - **Blocked:** Track blocked items with explicit blocker reasons, quick-add/detailed-add, and 1-click unblock.
+  - **Backlog:** Persistent, cross-day master backlog pool of incomplete tasks (`is_completed = false`) that can be prioritized (new tasks insert at `#1`) and pulled into *Today* at any point.
+- **📊 Completed Tasks Report & CSV Export:** Date-range filtered report modal (defaulting to the last 7 days) with 1-click RFC 4180 CSV export of all task metadata.
 - **📅 Interactive Calendar & History:** Month-view calendar tracking daily check-in/out statuses with instant jump-to-date historical review mode.
 - **🚀 1-Click Standup Export:** Generates formatted markdown standup summaries for Slack, Teams, or email.
 - **📦 Single Binary Deployment:** Production React SPA build is embedded directly into the Go executable via `go:embed`.
@@ -22,9 +23,9 @@ A personal morning ritual and daily execution tool designed for technology and k
 ## Tech Stack
 
 ### Backend
-- **Language:** Go (1.23+)
+- **Language:** Go (1.25+)
 - **HTTP Framework:** [Echo v4](https://echo.labstack.com/)
-- **Database & Auth:** Google Cloud Firestore & Firebase Authentication (Admin SDK)
+- **Database & Auth:** Google Cloud Firestore (ADC in production, Emulator locally) & Firebase Authentication (Admin SDK)
 - **Static Asset Embedding:** Go `embed.FS`
 
 ### Frontend
@@ -32,7 +33,7 @@ A personal morning ritual and daily execution tool designed for technology and k
 - **Build Tool:** [Vite](https://vitejs.dev/)
 - **Styling:** [Tailwind CSS](https://tailwindcss.com/)
 - **State Management & Caching:** [TanStack Query (React Query)](https://tanstack.com/query/latest) & React Context
-- **Drag & Drop:** `@hello-pangea/dnd`
+- **Ordering & Controls:** Accessible Up/Down arrow buttons & clickable `#N` jump-to-index reordering
 - **Icons & Utilities:** `lucide-react`, `date-fns`
 
 ### Infrastructure & DevOps
@@ -53,17 +54,18 @@ DailyCheckIn/
 │   └── server/
 │       └── main.go                 # Echo server entrypoint & graceful shutdown
 ├── internal/
-│   ├── api/                        # HTTP handlers & router setup
+│   ├── api/                        # HTTP handlers & router setup (tasks, days, backlog, rituals, calendar, reports)
 │   ├── middleware/                 # Firebase auth & request logging middleware
-│   ├── service/                    # Business logic (check-in/out wizards, rollover)
-│   ├── repository/                 # Firestore repositories & data access
+│   ├── service/                    # Business logic (check-in/out wizards, rollover, date-range reports)
+│   ├── repository/                 # Firestore client (ADC/emulator) & collection repositories
 │   └── model/                      # Go structs & API envelopes
 ├── frontend/
 │   ├── src/
 │   │   ├── api/                    # Typed API client with JWT injection
-│   │   ├── components/             # UI components (Calendar, Board, Wizards, Tasks)
+│   │   ├── components/             # UI components (Calendar, Board, Reports, Wizards, Tasks)
 │   │   ├── context/                # AuthContext, DateContext
 │   │   ├── hooks/                  # TanStack Query data hooks
+│   │   ├── utils/                  # Standup markdown & RFC 4180 CSV export utilities
 │   │   ├── App.tsx                 # Main layout & router
 │   │   └── main.tsx                # Application root
 │   ├── index.html
