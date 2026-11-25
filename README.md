@@ -15,7 +15,8 @@ A personal morning ritual and daily execution tool designed for technology and k
   - **Backlog:** Persistent, cross-day master backlog pool of incomplete tasks (`is_completed = false`) that can be prioritized (new tasks insert at `#1`) and pulled into *Today* at any point.
 - **📊 Completed Tasks Report & CSV Export:** Date-range filtered report modal (defaulting to the last 7 days) with 1-click RFC 4180 CSV export of all task metadata.
 - **📅 Interactive Calendar & History:** Month-view calendar tracking daily check-in/out statuses with instant jump-to-date historical review mode.
-- **🚀 1-Click Standup Export:** Generates formatted markdown standup summaries for Slack, Teams, or email.
+- **🚀 1-Click Standup Export:** Generates formatted markdown standup summaries for Slack, Teams, or email (using relative calendar date headings when viewing non-current dates).
+- **📝 Markdown Daily Notes:** Empty/green-filled Daily Notes icon in the session bar opening a Markdown Write/Preview modal (also available in Morning Check-In and End-of-Day Check-Out).
 - **📦 Single Binary Deployment:** Production React SPA build is embedded directly into the Go executable via `go:embed`.
 
 ---

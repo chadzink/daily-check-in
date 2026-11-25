@@ -32,8 +32,8 @@ export const StandupExportModal: React.FC<StandupExportModalProps> = ({
   }, [isOpen, onClose]);
 
   const markdownContent = useMemo(() => {
-    return generateStandupMarkdown(sessionWithTasks, options);
-  }, [sessionWithTasks, options]);
+    return generateStandupMarkdown(sessionWithTasks, options, dateStr);
+  }, [sessionWithTasks, options, dateStr]);
 
   if (!isOpen) return null;
 

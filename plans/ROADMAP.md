@@ -167,3 +167,12 @@ flowchart TD
   - `internal/service/report_service.go` & `internal/api/reports.go` (`GET /api/reports/completed`).
   - `frontend/src/components/reports/ReportsModal.tsx`, `frontend/src/utils/csvExport.ts`, and `TaskCard.tsx` jump-to-index UI.
 - **Sign-Off:** **Implemented & QA Verified (Pending Merge Sign-Off)**.
+
+---
+
+### 📝 Milestone / Batch 13: Relative Date Labels & Markdown Daily Notes (PLAN-013)
+- **Focus:** Display relative formatted dates (`Sunday, Nov 22, 2026` / `Monday, Nov 23, 2026`) on non-current dates in Board headers & Standup Export, and add a Daily Notes icon/modal with a Markdown Write/Preview editor across Notes, Check-In, and Check-Out.
+- **Deliverables:**
+  - `frontend/src/utils/dateLabels.ts`, `standupGenerator.ts`, `YesterdayRow.tsx`, `TodayRow.tsx`.
+  - `frontend/src/components/common/MarkdownNotesEditor.tsx`, `frontend/src/components/board/DailyNotesModal.tsx`, `DaySessionActionBar.tsx`, and Check-In/Check-Out wizard steps.
+- **Sign-Off:** **Implemented & QA Verified (Pending Merge Sign-Off)**.

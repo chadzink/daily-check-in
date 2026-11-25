@@ -1,4 +1,5 @@
 import { DaySessionWithTasks, StandupExportOptions } from '../types/domain';
+import { getRelativeSectionLabels } from './dateLabels';
 
 export const defaultStandupOptions: StandupExportOptions = {
   includeCompleted: true,
@@ -11,10 +12,14 @@ export const defaultStandupOptions: StandupExportOptions = {
  */
 export function generateStandupMarkdown(
   data?: DaySessionWithTasks | null,
-  opts?: Partial<StandupExportOptions>
+  opts?: Partial<StandupExportOptions>,
+  dateStr?: string
 ): string {
   const options: StandupExportOptions = { ...defaultStandupOptions, ...opts };
   const bullet = options.bulletStyle;
+  const { yesterdayLabel, todayLabel } = getRelativeSectionLabels(
+    dateStr ?? data?.session?.date
+  );
 
   const yesterdayTasks = data?.tasks?.yesterday || [];
   const todayTasks = data?.tasks?.today || [];
@@ -23,7 +28,7 @@ export function generateStandupMarkdown(
   const lines: string[] = [];
 
   // 1. Yesterday Section
-  lines.push('**Yesterday:**');
+  lines.push(`**${yesterdayLabel}:**`);
   if (yesterdayTasks.length === 0) {
     lines.push(`${bullet} None`);
   } else {
@@ -34,7 +39,7 @@ export function generateStandupMarkdown(
   lines.push('');
 
   // 2. Today Section
-  lines.push('**Today:**');
+  lines.push(`**${todayLabel}:**`);
   // Filter today tasks if options.includeCompleted is false
   const filteredToday = options.includeCompleted
     ? todayTasks

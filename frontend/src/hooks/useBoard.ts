@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchBacklog,
   fetchDaySession,
+  updateDaySession,
   updateDayTask,
   updateTask,
   archiveTask,
@@ -555,5 +556,32 @@ export function useCompletedTasksReport(startDate: string, endDate: string, enab
     queryKey: queryKeys.completedReport(startDate, endDate),
     queryFn: () => fetchCompletedTasksReport(startDate, endDate),
     enabled: enabled && !!startDate && !!endDate,
+  });
+}
+
+export function useUpdateDayNotes(date: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ notes }: { notes: string }) => updateDaySession(date, { notes }),
+    onMutate: async ({ notes }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.daySession(date) });
+      const prevSession = queryClient.getQueryData<DaySessionWithTasks>(queryKeys.daySession(date));
+      if (prevSession) {
+        queryClient.setQueryData<DaySessionWithTasks>(queryKeys.daySession(date), {
+          ...prevSession,
+          session: { ...prevSession.session, notes },
+        });
+      }
+      return { prevSession };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.prevSession) {
+        queryClient.setQueryData(queryKeys.daySession(date), context.prevSession);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.daySession(date) });
+    },
   });
 }

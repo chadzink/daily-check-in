@@ -1,6 +1,6 @@
 import React from 'react';
 import { format } from 'date-fns';
-import { Sun, Moon, CheckCircle2, ArrowRight, Sparkles, FileText, History } from 'lucide-react';
+import { Sun, Moon, CheckCircle2, ArrowRight, Sparkles, FileText, History, StickyNote } from 'lucide-react';
 import { DaySession } from '../../types/domain';
 
 interface DaySessionActionBarProps {
@@ -8,6 +8,7 @@ interface DaySessionActionBarProps {
   onStartCheckIn: () => void;
   onStartCheckOut: () => void;
   onExportStandup?: () => void;
+  onOpenNotes?: () => void;
   isReadOnly?: boolean;
 }
 
@@ -16,10 +17,12 @@ export const DaySessionActionBar: React.FC<DaySessionActionBarProps> = ({
   onStartCheckIn,
   onStartCheckOut,
   onExportStandup,
+  onOpenNotes,
   isReadOnly = false,
 }) => {
   const isCheckedIn = Boolean(session?.check_in_at);
   const isCheckedOut = Boolean(session?.check_out_at);
+  const hasNotes = Boolean(session?.notes?.trim());
 
   const formatTimestamp = (timestamp?: string | null) => {
     if (!timestamp) return '';
@@ -57,16 +60,28 @@ export const DaySessionActionBar: React.FC<DaySessionActionBarProps> = ({
             <span>{isReadOnly ? 'Day Session Closed' : 'Day in Progress'}</span>
           </div>
         ) : null}
-
-        {session?.notes && (
-          <span className="text-xs text-slate-400 italic hidden md:inline-block max-w-md truncate">
-            &ldquo;{session.notes}&rdquo;
-          </span>
-        )}
       </div>
 
       {/* Action Triggers */}
       <div className="flex items-center space-x-2">
+        {/* Daily Notes Icon Button */}
+        {onOpenNotes && (
+          <button
+            type="button"
+            onClick={onOpenNotes}
+            data-testid="daily-notes-btn"
+            aria-label={hasNotes ? 'View or edit daily notes (has notes)' : 'Add daily notes'}
+            title={hasNotes ? 'Daily Notes (click to view/edit)' : 'Daily Notes (empty)'}
+            className={`relative inline-flex items-center justify-center p-1.5 rounded-lg border transition-all ${
+              hasNotes
+                ? 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/40 text-emerald-400'
+                : 'bg-slate-800 hover:bg-slate-700/80 border-slate-700 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <StickyNote className={`h-4 w-4 ${hasNotes ? 'fill-emerald-400/25' : ''}`} />
+          </button>
+        )}
+
         {/* Export Standup Button */}
         {onExportStandup && (
           <button
