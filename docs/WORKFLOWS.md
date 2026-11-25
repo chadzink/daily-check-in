@@ -83,7 +83,7 @@ flowchart TD
    - Create or switch to the milestone/feature branch: `git checkout -b feat/<milestone-or-feature>`.
 2. **Environment & Emulator Health Check (`@devops-engineer`):**
    - Ensure Docker Compose is active: `docker-compose up -d`.
-   - Verify Firestore (`:8080`) and Auth (`:9099`) emulator health.
+   - Verify Firestore (`:8085`) and Auth (`:9099`) emulator health.
    - Run seed scripts if test fixture data is required.
 3. **Dependency Sequencing (`@product-owner` & `@developer`):**
    - Deconstruct the plan into an execution order:
@@ -114,10 +114,11 @@ flowchart TD
    - Add optimistic updates for checkbox toggles and drag-and-drop reordering.
    - Format calendar dates strictly as `YYYY-MM-DD` ISO strings using `date-fns`.
    - Pair with `@ui-designer` for accessible, polished component styling.
-3. **Pre-Flight Self-Verification (`@developer`):**
+3. **Pre-Flight Self-Verification & Documentation Sync (`@developer`):**
    - Run Go unit tests: `go test -v ./...`
-   - Run Frontend tests: `cd frontend && npm test`
+   - Run Frontend tests: `cd frontend && npm test -- --run`
    - Verify production build: `cd frontend && npm run build && go build ./cmd/server`
+   - Update affected project documentation (`docs/SPECIFICATION.md`, `README.md`, `docs/DEPLOYMENT.md`, `docs/WORKFLOWS.md`, and `plans/ROADMAP.md`) when features, APIs, schemas, indexes, or tech stack dependencies change.
 4. **Handoff to QA:**
    - Provide summary of modified files, test command outputs, and critical paths to `@tester`.
 
@@ -188,6 +189,7 @@ flowchart TD
 - [ ] Frontend tests and production bundle build cleanly: `npm test && npm run build`.
 - [ ] Single binary packages static frontend assets (`//go:embed`).
 - [ ] Test results (`test-results/`) and QA reports (`test-reports/`) strictly contain project-relative paths with zero personal info (PII) or credentials.
+- [ ] Project documentation (`docs/SPECIFICATION.md`, `README.md`, `docs/DEPLOYMENT.md`, `docs/WORKFLOWS.md`, `plans/ROADMAP.md`) updated for all new features, APIs, indexes, and stack changes.
 - [ ] QA sign-off report committed in `test-reports/`.
 - [ ] User review approved.
 

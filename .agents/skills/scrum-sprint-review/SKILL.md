@@ -22,6 +22,7 @@ Validate that all items are completed:
 - [ ] UI adheres to Tailwind design tokens and supports dark/light themes.
 - [ ] Single binary compilation succeeds with embedded static assets (`//go:embed`).
 - [ ] No regression in existing tests across the codebase.
+- [ ] Project documentation (`docs/SPECIFICATION.md`, `README.md`, `docs/DEPLOYMENT.md`, `docs/WORKFLOWS.md`, `plans/ROADMAP.md`) is updated to reflect all delivered changes.
 
 ### 3. Present Demo Walkthrough to User
 - Provide a concise summary of accomplishments:

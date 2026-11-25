@@ -43,7 +43,14 @@ npm run build
 cd .. && go build -o bin/dailycheckin ./cmd/server
 ```
 
-### 4. Handoff Protocol to `@tester`
+### 4. Documentation Sync
+Before handing off to `@tester` / Sprint Review, update any project documentation affected by the plan:
+- `docs/SPECIFICATION.md` (API contracts, UI components, data models, `firestore.indexes.json`, tech stack)
+- `README.md` (features, tech stack, directory structure, environment variables)
+- `docs/DEPLOYMENT.md` & `docs/WORKFLOWS.md` (if deployment, infra, or workflow steps changed)
+- `plans/ROADMAP.md` (milestone/batch status)
+
+### 5. Handoff Protocol to `@tester`
 Provide a concise handoff note including:
 - Files modified and created.
 - Key implementation choices and edge cases handled.

@@ -13,5 +13,6 @@
    - Architecture & code hygiene standards met.
    - Design tokens and WCAG AA contrast satisfied.
    - Production single-binary packaging builds cleanly.
+   - Documentation (`docs/SPECIFICATION.md`, `README.md`, `docs/DEPLOYMENT.md`, `docs/WORKFLOWS.md`, `plans/ROADMAP.md`) updated.
 3. **User Demo Presentation:** Present user journey walkthrough with visual evidence.
 4. **Approval Gate:** Obtain human-in-the-loop approval before merging to `main`.
