@@ -3,7 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 import { ExecutionRow } from './ExecutionRow';
 import { TaskCard, TaskCardData } from './TaskCard';
 import { QuickAddInput } from './QuickAddInput';
-import { DayTaskWithDetails } from '../../types/domain';
+import { DayTaskWithDetails, Subtask } from '../../types/domain';
 
 interface BlockedRowProps {
   tasks: DayTaskWithDetails[];
@@ -15,6 +15,7 @@ interface BlockedRowProps {
   onMoveToIndex?: (fromIndex: number, toIndex: number) => void;
   onEdit: (task: TaskCardData) => void;
   onDelete: (task: TaskCardData) => void;
+  onUpdateSubtasks?: (taskId: string, subtasks: Subtask[]) => void;
   onAddTask?: (title: string) => void;
   onOpenDetailedAdd?: () => void;
   isAddingTask?: boolean;
@@ -33,6 +34,7 @@ export const BlockedRow: React.FC<BlockedRowProps> = ({
   onMoveToIndex,
   onEdit,
   onDelete,
+  onUpdateSubtasks,
   onAddTask,
   onOpenDetailedAdd,
   isAddingTask = false,
@@ -50,6 +52,7 @@ export const BlockedRow: React.FC<BlockedRowProps> = ({
     completedAt: t.completed_at,
     priorityOrder: idx + 1,
     blockerReason: t.blocker_reason,
+    subtasks: t.subtasks || [],
   }));
 
   return (
@@ -92,6 +95,7 @@ export const BlockedRow: React.FC<BlockedRowProps> = ({
           onMoveToIndex={onMoveToIndex}
           onEdit={onEdit}
           onDelete={onDelete}
+          onUpdateSubtasks={onUpdateSubtasks}
         />
       ))}
     </ExecutionRow>

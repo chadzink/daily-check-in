@@ -48,6 +48,9 @@ func (r *firestoreTaskRepository) Create(ctx context.Context, task *model.Task) 
 		task.CreatedAt = now
 	}
 	task.UpdatedAt = now
+	if task.Subtasks == nil {
+		task.Subtasks = make([]model.Subtask, 0)
+	}
 
 	docRef := r.userTasksColl(task.UserID).Doc(task.ID)
 	_, err := docRef.Set(ctx, task)
@@ -74,6 +77,9 @@ func (r *firestoreTaskRepository) GetByID(ctx context.Context, userID, taskID st
 	var task model.Task
 	if err := snap.DataTo(&task); err != nil {
 		return nil, fmt.Errorf("failed to decode task data: %w", err)
+	}
+	if task.Subtasks == nil {
+		task.Subtasks = make([]model.Subtask, 0)
 	}
 	return &task, nil
 }
@@ -116,6 +122,9 @@ func (r *firestoreTaskRepository) GetByIDs(ctx context.Context, userID string, t
 		if snap.Exists() {
 			var task model.Task
 			if err := snap.DataTo(&task); err == nil {
+				if task.Subtasks == nil {
+					task.Subtasks = make([]model.Subtask, 0)
+				}
 				result[task.ID] = &task
 			}
 		}
@@ -146,6 +155,9 @@ func (r *firestoreTaskRepository) ListBacklog(ctx context.Context, userID string
 		if err := snap.DataTo(&task); err != nil {
 			return nil, fmt.Errorf("failed to decode task: %w", err)
 		}
+		if task.Subtasks == nil {
+			task.Subtasks = make([]model.Subtask, 0)
+		}
 		tasks = append(tasks, &task)
 	}
 
@@ -158,6 +170,9 @@ func (r *firestoreTaskRepository) Update(ctx context.Context, task *model.Task) 
 	}
 
 	task.UpdatedAt = time.Now().UTC()
+	if task.Subtasks == nil {
+		task.Subtasks = make([]model.Subtask, 0)
+	}
 	docRef := r.userTasksColl(task.UserID).Doc(task.ID)
 
 	// Verify existence

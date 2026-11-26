@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { format } from 'date-fns';
 import {
   useDaySession,
   useBacklog,
@@ -12,9 +13,11 @@ import {
   useCreateBacklogTask,
   useReorderBacklog,
   useUpdateTask,
+  useMoveTaskToDate,
   useArchiveTask,
   useUpdateDayNotes,
 } from '../../hooks/useBoard';
+import { Subtask } from '../../types/domain';
 import { YesterdayRow } from './YesterdayRow';
 import { TodayRow } from './TodayRow';
 import { BlockedRow } from './BlockedRow';
@@ -74,15 +77,16 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
     // fallback when rendered outside DateProvider in unit tests
   }
   const isHistorical = isReadOnly ?? (dateContext?.isHistorical ?? false);
+  const today = dateContext?.today ?? format(new Date(), 'yyyy-MM-dd');
 
   const { data: daySession, isLoading: sessionLoading, error: sessionError, refetch: refetchSession } =
     useDaySession(date);
   const { data: backlog, isLoading: backlogLoading, error: backlogError, refetch: refetchBacklog } =
-    useBacklog();
+    useBacklog(today);
 
   const toggleComplete = useToggleTaskCompletion(date);
   const reorderDayTasks = useReorderDayTasks(date);
-  const pullBacklogTask = usePullBacklogTask(date);
+  const pullBacklogTask = usePullBacklogTask(date, today);
   const demoteDayTask = useDemoteDayTask(date);
   const moveTaskToBlocked = useMoveTaskToBlocked(date);
   const unblockTask = useUnblockTask(date);
@@ -90,6 +94,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
   const createBacklogTask = useCreateBacklogTask();
   const reorderBacklog = useReorderBacklog();
   const updateTaskMutation = useUpdateTask(date);
+  const moveTaskToDateMutation = useMoveTaskToDate(date);
   const archiveTaskMutation = useArchiveTask(date);
   const updateDayNotesMutation = useUpdateDayNotes(date);
   const { yesterdayLabel, todayLabel } = getRelativeSectionLabels(date);
@@ -183,6 +188,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
           backlogQuickAddRef.current?.focus();
         }
       } else if (e.key === 'p' || e.key === 'P') {
+        if (isHistorical) return;
         e.preventDefault();
         // Pull top item from Backlog
         if (backlog && backlog.tasks.length > 0) {
@@ -194,7 +200,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [backlog, pullBacklogTask, collapsedRows.TODAY, collapsedRows.BACKLOG]);
+  }, [backlog, pullBacklogTask, collapsedRows.TODAY, collapsedRows.BACKLOG, isHistorical]);
 
   const moveItemToIndex = <T,>(items: T[], fromIndex: number, toIndex: number): T[] | null => {
     if (
@@ -240,7 +246,6 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
     fromIndex: number,
     toIndex: number
   ) => {
-    if (isHistorical) return;
     const reordered = moveItemToIndex(uncommittedTasks, fromIndex, toIndex);
     if (!reordered) return;
     reorderBacklog.mutate(reordered.map((t) => t.id));
@@ -269,12 +274,44 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
     setBlockerModalState({ isOpen: false, dayTaskId: '', taskTitle: '' });
   };
 
-  const handleConfirmEdit = (title: string, description: string) => {
+  const handleConfirmEdit = async (title: string, description: string, targetDate?: string) => {
     if (!editingTask) return;
+    const hasTextChanges =
+      title !== editingTask.title || description !== (editingTask.description ?? '');
+
+    if (targetDate) {
+      try {
+        if (hasTextChanges) {
+          await updateTaskMutation.mutateAsync({
+            taskId: editingTask.taskId,
+            title,
+            description,
+          });
+        }
+        await moveTaskToDateMutation.mutateAsync({
+          taskId: editingTask.taskId,
+          payload: {
+            target_date: targetDate,
+            source_date: editingTask.status === 'BACKLOG' ? undefined : date,
+            day_task_id: editingTask.status === 'BACKLOG' ? undefined : editingTask.id,
+            today_date: today,
+          },
+        });
+        setEditingTask(null);
+      } catch {
+        // Error state handled by TanStack Query
+      }
+      return;
+    }
+
     updateTaskMutation.mutate(
       { taskId: editingTask.taskId, title, description },
       { onSuccess: () => setEditingTask(null) }
     );
+  };
+
+  const handleUpdateSubtasks = (taskId: string, subtasks: Subtask[]) => {
+    updateTaskMutation.mutate({ taskId, subtasks });
   };
 
   const handleConfirmDetailedAdd = (title: string, description: string) => {
@@ -384,7 +421,10 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
             <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-800 border border-slate-700 rounded text-slate-300">B</kbd>
             <span>Add Backlog</span>
           </span>
-          <span className="inline-flex items-center space-x-1.5">
+          <span
+            data-testid="shortcut-pull-hint"
+            className={`inline-flex items-center space-x-1.5 ${isHistorical ? 'opacity-40 line-through' : ''}`}
+          >
             <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-800 border border-slate-700 rounded text-slate-300">P</kbd>
             <span>Pull Top Item</span>
           </span>
@@ -417,6 +457,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
           onMoveToIndex={(fromIdx, toIdx) => handleMoveDayTaskToIndex('TODAY', fromIdx, toIdx)}
           onEdit={(task) => setEditingTask(task)}
           onDelete={(task) => setDeletingTask(task)}
+          onUpdateSubtasks={handleUpdateSubtasks}
           onAddTask={(title) => createTodayTask.mutate({ title, status: 'TODAY' })}
           onOpenDetailedAdd={() => setDetailedAddTarget('TODAY')}
           isAddingTask={createTodayTask.isPending}
@@ -448,6 +489,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
           onMoveToIndex={(fromIdx, toIdx) => handleMoveDayTaskToIndex('BLOCKED', fromIdx, toIdx)}
           onEdit={(task) => setEditingTask(task)}
           onDelete={(task) => setDeletingTask(task)}
+          onUpdateSubtasks={handleUpdateSubtasks}
           onAddTask={(title) => createTodayTask.mutate({ title, status: 'BLOCKED' })}
           onOpenDetailedAdd={() => setDetailedAddTarget('BLOCKED')}
           isAddingTask={createTodayTask.isPending}
@@ -456,6 +498,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
         {/* Row 4: Backlog */}
         <BacklogRow
           tasks={uncommittedBacklogTasks}
+          disablePull={isHistorical}
           isCollapsed={collapsedRows.BACKLOG}
           onToggleCollapse={() => toggleRowCollapse('BACKLOG')}
           onPull={(taskId) => pullBacklogTask.mutate({ taskId, status: 'TODAY' })}
@@ -464,6 +507,7 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
           onMoveToIndex={(fromIdx, toIdx) => handleMoveBacklogTaskToIndex(uncommittedBacklogTasks, fromIdx, toIdx)}
           onEdit={(task) => setEditingTask(task)}
           onDelete={(task) => setDeletingTask(task)}
+          onUpdateSubtasks={handleUpdateSubtasks}
           onAddTask={(title) => createBacklogTask.mutate({ title })}
           onOpenDetailedAdd={() => setDetailedAddTarget('BACKLOG')}
           isAddingTask={createBacklogTask.isPending}
@@ -485,9 +529,12 @@ export const DailyBoard: React.FC<DailyBoardProps> = ({ date, isReadOnly }) => {
         mode="edit"
         initialTitle={editingTask?.title ?? ''}
         initialDescription={editingTask?.description ?? ''}
+        taskStatus={editingTask?.status}
+        currentDate={date}
+        todayDate={today}
         onConfirm={handleConfirmEdit}
         onCancel={() => setEditingTask(null)}
-        isSaving={updateTaskMutation.isPending}
+        isSaving={updateTaskMutation.isPending || moveTaskToDateMutation.isPending}
       />
 
       {/* Detailed Add Task Modal */}

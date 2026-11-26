@@ -34,7 +34,9 @@ export const MorningCheckInModal: React.FC<MorningCheckInModalProps> = ({
   const executeCheckInMutation = useExecuteCheckIn();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [decisions, setDecisions] = useState<Record<string, { dayTaskId: string; action: RolloverAction }>>({});
+  const [decisions, setDecisions] = useState<
+    Record<string, { dayTaskId: string; action: RolloverAction; blockerReason?: string }>
+  >({});
   const [selectedBacklogIds, setSelectedBacklogIds] = useState<string[]>([]);
   const [prioritizedItems, setPrioritizedItems] = useState<PrioritizedItem[]>([]);
   const [notes, setNotes] = useState('');
@@ -43,11 +45,15 @@ export const MorningCheckInModal: React.FC<MorningCheckInModalProps> = ({
   // Initialize decisions when contextData arrives
   useEffect(() => {
     if (contextData?.rollover_candidates) {
-      const initial: Record<string, { dayTaskId: string; action: RolloverAction }> = {};
+      const initial: Record<
+        string,
+        { dayTaskId: string; action: RolloverAction; blockerReason?: string }
+      > = {};
       contextData.rollover_candidates.forEach((task) => {
         initial[task.task_id] = {
           dayTaskId: task.day_task_id,
-          action: 'ROLLOVER',
+          action: task.status === 'BLOCKED' ? 'KEEP_BLOCKED' : 'ROLLOVER',
+          blockerReason: task.blocker_reason || undefined,
         };
       });
       setDecisions(initial);
@@ -59,9 +65,11 @@ export const MorningCheckInModal: React.FC<MorningCheckInModalProps> = ({
     if (step === 4 && contextData) {
       const items: PrioritizedItem[] = [];
 
-      // 1. Add rollover candidates marked ROLLOVER
-      contextData.rollover_candidates.forEach((task) => {
-        const action = decisions[task.task_id]?.action || 'ROLLOVER';
+      // 1. Add rollover candidates marked ROLLOVER (KEEP_BLOCKED omitted from Step 4)
+      (contextData.rollover_candidates || []).forEach((task) => {
+        const defaultAction: RolloverAction =
+          task.status === 'BLOCKED' ? 'KEEP_BLOCKED' : 'ROLLOVER';
+        const action = decisions[task.task_id]?.action || defaultAction;
         if (action === 'ROLLOVER') {
           items.push({
             id: task.task_id,
@@ -73,7 +81,7 @@ export const MorningCheckInModal: React.FC<MorningCheckInModalProps> = ({
 
       // 2. Add selected backlog tasks
       selectedBacklogIds.forEach((id) => {
-        const backlogTask = contextData.backlog_tasks.find((t) => t.id === id);
+        const backlogTask = (contextData.backlog_tasks || []).find((t) => t.id === id);
         if (backlogTask && !items.some((item) => item.id === id)) {
           items.push({
             id: backlogTask.id,
@@ -103,7 +111,11 @@ export const MorningCheckInModal: React.FC<MorningCheckInModalProps> = ({
   const handleSetDecision = (taskId: string, dayTaskId: string, action: RolloverAction) => {
     setDecisions((prev) => ({
       ...prev,
-      [taskId]: { dayTaskId, action },
+      [taskId]: {
+        dayTaskId,
+        action,
+        blockerReason: prev[taskId]?.blockerReason,
+      },
     }));
   };
 
@@ -141,6 +153,9 @@ export const MorningCheckInModal: React.FC<MorningCheckInModalProps> = ({
         day_task_id: info.dayTaskId,
         task_id: taskId,
         action: info.action,
+        ...(info.action === 'KEEP_BLOCKED' && info.blockerReason
+          ? { blocker_reason: info.blockerReason }
+          : {}),
       })
     );
 

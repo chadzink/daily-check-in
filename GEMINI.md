@@ -135,6 +135,8 @@ go build -o bin/dailycheckin ./cmd/server
 - [ ] Static asset routers and healthcheck endpoints must support both `GET` and `HEAD` requests to ensure compatibility with container health checks and CDN/monitoring probes.
 - [ ] Embedded static file servers must distinguish caching headers: immutable caching (`public, max-age=31536000, immutable`) for hashed `/assets/*` files, and `no-cache` for root `index.html` to prevent stale client bundles.
 - [ ] `Yesterday` accomplishments must be resolved dynamically from the most recent prior day with non-`YESTERDAY` completed tasks (`dt.Status != model.StatusYesterday && dt.IsCompleted`), never persisted as duplicated `StatusYesterday` `DayTask` records, and reporting/calendar aggregations must ignore legacy `StatusYesterday` records.
+- [ ] Embedded arrays on Firestore documents (such as `Task.Subtasks`) must normalize `nil` slices to `make([]T, 0)` immediately after `DataTo` decoding so legacy documents serialize as `[]` rather than `null`.
+- [ ] Date-sensitive guards and backlog exclusion filters (e.g., past-date pull guard, `date >= today` committed-task exclusion) must accept client local `today` (`YYYY-MM-DD`) with a UTC fallback to avoid timezone drift.
 
 
 

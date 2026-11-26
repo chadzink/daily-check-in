@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React from 'react';
+import type { ReactElement } from 'react';
 import { DailyBoard } from './DailyBoard';
 
-function renderWithClient(ui: React.ReactElement) {
+function renderWithClient(ui: ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -592,6 +592,173 @@ describe('DailyBoard Component', () => {
       const backlogInput = screen.getByPlaceholderText(/Add task to Backlog/i);
       expect(backlogInput).toBeInTheDocument();
       expect(backlogInput).toHaveFocus();
+    });
+  });
+
+  it('disables Backlog pull button and P shortcut on past dates while allowing Backlog reordering and passes ?today= to backlog', async () => {
+    const pullMock = vi.fn();
+    const reorderBacklogMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+    });
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (opts?.method === 'POST' && url.includes('/pull')) {
+        pullMock();
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      }
+      if (opts?.method === 'PUT' && url.includes('/api/backlog/reorder')) {
+        return reorderBacklogMock();
+      }
+      if (url.includes('/api/days/')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            session: { id: 's-past', user_id: 'u-1', date: '2026-11-24', notes: '', check_in_at: '2026-11-24T09:00:00Z' },
+            tasks: { yesterday: [], today: [], blocked: [] },
+          }),
+        });
+      }
+      if (url.includes('/api/backlog')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            tasks: [
+              { id: 'tb-1', user_id: 'u-1', title: 'Backlog First', description: '', is_completed: false, is_archived: false, backlog_order: 1, subtasks: [] },
+              { id: 'tb-2', user_id: 'u-1', title: 'Backlog Second', description: '', is_completed: false, is_archived: false, backlog_order: 2, subtasks: [] },
+            ],
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const user = userEvent.setup();
+    renderWithClient(<DailyBoard date="2026-11-24" isReadOnly={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Backlog First')).toBeInTheDocument();
+    });
+
+    // Backlog fetch includes ?today=
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/backlog\?today=\d{4}-\d{2}-\d{2}/),
+      expect.anything()
+    );
+
+    // Pull button is disabled with tooltip
+    const pullBtn = screen.getByTestId('task-pull-tb-1');
+    expect(pullBtn).toBeDisabled();
+    expect(pullBtn).toHaveAttribute('title', 'Cannot pull tasks into a past date');
+
+    // P shortcut hint is muted & pressing P does not trigger pull
+    expect(screen.getByTestId('shortcut-pull-hint').className).toContain('line-through');
+    await user.keyboard('p');
+    expect(pullMock).not.toHaveBeenCalled();
+
+    // Backlog reordering still works on past dates
+    await user.click(screen.getByTestId('task-move-down-tb-1'));
+    await waitFor(() => {
+      expect(reorderBacklogMock).toHaveBeenCalled();
+    });
+  });
+
+  it('moves a task to a future date via EditTaskModal and cascades parent completion to subtasks optimistically', async () => {
+    let parentCompleted = false;
+    const moveMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ day_task_id: 'dt-future', task_id: 't-1', title: 'Active Task', status: 'TODAY', subtasks: [] }),
+    });
+    const patchDayTaskMock = vi.fn().mockImplementation(() => {
+      parentCompleted = true;
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          day_task_id: 'dt-1',
+          task_id: 't-1',
+          title: 'Active Task',
+          status: 'TODAY',
+          is_completed: true,
+          subtasks: [
+            { id: 's-1', title: 'Sub One', is_completed: true, order: 1 },
+            { id: 's-2', title: 'Sub Two', is_completed: true, order: 2 },
+          ],
+        }),
+      });
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+        if (opts?.method === 'POST' && url.includes('/api/tasks/t-1/move')) {
+          return moveMock(JSON.parse(String(opts.body)));
+        }
+        if (opts?.method === 'PATCH' && url.includes(`/api/days/${mockDate}/tasks/dt-1`)) {
+          return patchDayTaskMock();
+        }
+        if (url.includes('/api/days/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              session: { id: 's-1', user_id: 'u-1', date: mockDate, notes: '', check_in_at: '2026-08-31T09:00:00Z' },
+              tasks: {
+                yesterday: [],
+                today: [
+                  {
+                    day_task_id: 'dt-1',
+                    task_id: 't-1',
+                    title: 'Active Task',
+                    description: 'Some desc',
+                    status: 'TODAY',
+                    is_completed: parentCompleted,
+                    priority_order: 1,
+                    subtasks: [
+                      { id: 's-1', title: 'Sub One', is_completed: true, order: 1 },
+                      { id: 's-2', title: 'Sub Two', is_completed: parentCompleted, order: 2 },
+                    ],
+                  },
+                ],
+                blocked: [],
+              },
+            }),
+          });
+        }
+        if (url.includes('/api/backlog')) {
+          return Promise.resolve({ ok: true, json: async () => ({ tasks: [] }) });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      })
+    );
+
+    const user = userEvent.setup();
+    renderWithClient(<DailyBoard date={mockDate} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('task-subtask-badge-dt-1')).toHaveTextContent('1/2');
+    });
+
+    // Check parent task complete -> optimistic cascade updates badge to 2/2
+    await user.click(screen.getByTestId('task-checkbox-dt-1'));
+    await waitFor(() => {
+      expect(patchDayTaskMock).toHaveBeenCalled();
+      expect(screen.getByTestId('task-subtask-badge-dt-1')).toHaveTextContent('2/2');
+    });
+
+    // Open Edit modal and move task to a future date (2099-12-31 is always in the future)
+    await user.click(screen.getByTestId('task-edit-dt-1'));
+    const dateInput = screen.getByTestId('edit-task-move-date');
+    fireEvent.change(dateInput, { target: { value: '2099-12-31' } });
+    await user.click(screen.getByRole('button', { name: 'Save & Move' }));
+
+    await waitFor(() => {
+      expect(moveMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          target_date: '2099-12-31',
+          source_date: mockDate,
+          day_task_id: 'dt-1',
+        })
+      );
     });
   });
 });

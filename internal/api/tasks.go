@@ -26,6 +26,7 @@ func (h *TasksHandler) RegisterRoutes(g *echo.Group) {
 	g.GET("/tasks/:id", h.GetTask)
 	g.PATCH("/tasks/:id", h.UpdateTask)
 	g.DELETE("/tasks/:id", h.ArchiveTask)
+	g.POST("/tasks/:id/move", h.MoveTaskToDate)
 }
 
 // CreateTask quick-adds a task, optionally committing to a day session
@@ -146,4 +147,43 @@ func (h *TasksHandler) ArchiveTask(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]bool{"archived": true})
+}
+
+// MoveTaskToDate atomically moves or schedules a task onto a future date
+func (h *TasksHandler) MoveTaskToDate(c echo.Context) error {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		return c.JSON(http.StatusUnauthorized, model.StandardErrorResponse{Error: "Unauthorized"})
+	}
+
+	id := c.Param("id")
+	var req model.MoveTaskToDateRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, model.StandardErrorResponse{
+			Error:   "BadRequest",
+			Message: "Invalid move payload",
+		})
+	}
+
+	moved, err := h.taskService.MoveTaskToDate(c.Request().Context(), userID, id, req)
+	if err != nil {
+		if errors.Is(err, model.ErrNotFound) {
+			return c.JSON(http.StatusNotFound, model.StandardErrorResponse{
+				Error:   "NotFound",
+				Message: "Task not found",
+			})
+		}
+		if errors.Is(err, model.ErrInvalidInput) {
+			return c.JSON(http.StatusBadRequest, model.StandardErrorResponse{
+				Error:   "BadRequest",
+				Message: err.Error(),
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, model.StandardErrorResponse{
+			Error:   "InternalServerError",
+			Message: err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, moved)
 }

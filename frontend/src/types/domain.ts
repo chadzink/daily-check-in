@@ -15,6 +15,13 @@ export interface DaySession {
   updated_at: string;
 }
 
+export interface Subtask {
+  id: string;
+  title: string;
+  is_completed: boolean;
+  order: number;
+}
+
 export interface MasterTask {
   id: string;
   user_id: string;
@@ -24,6 +31,7 @@ export interface MasterTask {
   completed_at?: string | null;
   is_archived: boolean;
   backlog_order: number;
+  subtasks: Subtask[];
   created_at: string;
   updated_at: string;
 }
@@ -38,6 +46,7 @@ export interface DayTaskWithDetails {
   completed_at?: string | null;
   priority_order: number;
   blocker_reason?: string | null;
+  subtasks: Subtask[];
 }
 
 export interface DayTasksGrouped {
@@ -70,6 +79,14 @@ export interface UpdateTaskPayload {
   is_completed?: boolean;
   backlog_order?: number;
   is_archived?: boolean;
+  subtasks?: Subtask[];
+}
+
+export interface MoveTaskToDatePayload {
+  target_date: string;
+  source_date?: string;
+  day_task_id?: string;
+  today_date?: string;
 }
 
 export interface UpdateDaySessionPayload {
@@ -96,6 +113,7 @@ export interface PullDayTaskPayload {
   task_id: string;
   status: DayStatus;
   priority_order?: number;
+  today_date?: string;
 }
 
 export interface ReorderDayTasksPayload {
@@ -104,12 +122,13 @@ export interface ReorderDayTasksPayload {
   ordered_day_task_ids: string[];
 }
 
-export type RolloverAction = 'ROLLOVER' | 'DEMOTE' | 'COMPLETE';
+export type RolloverAction = 'ROLLOVER' | 'KEEP_BLOCKED' | 'DEMOTE' | 'COMPLETE';
 
 export interface RolloverDecision {
   day_task_id: string;
   task_id: string;
   action: RolloverAction;
+  blocker_reason?: string;
 }
 
 export interface CheckInContextResponse {

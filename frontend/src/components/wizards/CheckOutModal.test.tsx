@@ -50,6 +50,7 @@ describe('CheckOutModal Component', () => {
             status: 'TODAY',
             is_completed: true,
             priority_order: 1,
+            subtasks: [],
           },
           {
             day_task_id: 'dt-2',
@@ -59,6 +60,7 @@ describe('CheckOutModal Component', () => {
             status: 'TODAY',
             is_completed: false,
             priority_order: 2,
+            subtasks: [],
           },
         ],
         blocked: [],

@@ -218,4 +218,151 @@ describe('TaskCard Component', () => {
 
     expect(onMoveToIndex).toHaveBeenCalledWith(0, 2);
   });
+
+  it('disables Backlog Pull button with tooltip when disablePull is true', async () => {
+    const onPullMock = vi.fn();
+    const task: TaskCardData = {
+      id: 't-backlog-past',
+      taskId: 't-backlog-past',
+      title: 'Backlog Item on Past Day',
+      status: 'BACKLOG',
+      priorityOrder: 1,
+    };
+
+    const user = userEvent.setup();
+    render(
+      <TaskCard
+        task={task}
+        index={0}
+        totalCount={1}
+        disablePull={true}
+        onPull={onPullMock}
+      />
+    );
+
+    const pullBtn = screen.getByTestId('task-pull-t-backlog-past');
+    expect(pullBtn).toBeDisabled();
+    expect(pullBtn).toHaveAttribute('aria-disabled', 'true');
+    expect(pullBtn).toHaveAttribute('title', 'Cannot pull tasks into a past date');
+    await user.click(pullBtn);
+    expect(onPullMock).not.toHaveBeenCalled();
+  });
+
+  it('renders expanded inline sub-tasks with progress badge and supports add, toggle, edit, and delete', async () => {
+    const onUpdateSubtasks = vi.fn();
+    const onToggleComplete = vi.fn();
+    const task: TaskCardData = {
+      id: 'dt-sub-1',
+      taskId: 't-sub-1',
+      title: 'Ship auth middleware',
+      status: 'TODAY',
+      isCompleted: false,
+      subtasks: [
+        { id: 's-1', title: 'Verify JWT claims', is_completed: true, order: 1 },
+        { id: 's-2', title: 'Add rate limit test', is_completed: false, order: 2 },
+      ],
+    };
+
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <TaskCard
+        task={task}
+        index={0}
+        totalCount={1}
+        onToggleComplete={onToggleComplete}
+        onUpdateSubtasks={onUpdateSubtasks}
+      />
+    );
+
+    // Progress badge shows 1/2
+    const badge = screen.getByTestId('task-subtask-badge-dt-sub-1');
+    expect(badge).toHaveTextContent('1/2');
+    expect(screen.getByTestId('subtask-title-s-1')).toHaveTextContent('Verify JWT claims');
+    expect(screen.getByTestId('subtask-title-s-2')).toHaveTextContent('Add rate limit test');
+
+    // Toggle second sub-task independently (must not call parent onToggleComplete)
+    await user.click(screen.getByTestId('subtask-checkbox-s-2'));
+    expect(onToggleComplete).not.toHaveBeenCalled();
+    expect(onUpdateSubtasks).toHaveBeenCalledWith('t-sub-1', [
+      { id: 's-1', title: 'Verify JWT claims', is_completed: true, order: 1 },
+      { id: 's-2', title: 'Add rate limit test', is_completed: true, order: 2 },
+    ]);
+
+    // Rerender with all completed -> emerald badge 2/2
+    rerender(
+      <TaskCard
+        task={{
+          ...task,
+          subtasks: [
+            { id: 's-1', title: 'Verify JWT claims', is_completed: true, order: 1 },
+            { id: 's-2', title: 'Add rate limit test', is_completed: true, order: 2 },
+          ],
+        }}
+        index={0}
+        totalCount={1}
+        onToggleComplete={onToggleComplete}
+        onUpdateSubtasks={onUpdateSubtasks}
+      />
+    );
+    expect(screen.getByTestId('task-subtask-badge-dt-sub-1')).toHaveTextContent('2/2');
+    expect(screen.getByTestId('task-subtask-badge-dt-sub-1').className).toContain('emerald');
+
+    // Inline click-to-edit title
+    await user.click(screen.getByTestId('subtask-title-s-1'));
+    const editInput = screen.getByTestId('subtask-edit-input-s-1');
+    await user.clear(editInput);
+    await user.type(editInput, 'Verify JWT scopes{Enter}');
+    expect(onUpdateSubtasks).toHaveBeenLastCalledWith('t-sub-1', [
+      { id: 's-1', title: 'Verify JWT scopes', is_completed: true, order: 1 },
+      { id: 's-2', title: 'Add rate limit test', is_completed: true, order: 2 },
+    ]);
+
+    // Delete a sub-task
+    await user.click(screen.getByTestId('subtask-delete-s-1'));
+    expect(onUpdateSubtasks).toHaveBeenLastCalledWith('t-sub-1', [
+      { id: 's-2', title: 'Add rate limit test', is_completed: true, order: 1 },
+    ]);
+
+    // Inline add sub-task stays open after Enter and closes on Escape
+    await user.click(screen.getByTestId('task-add-subtask-trigger-dt-sub-1'));
+    const addInput = screen.getByTestId('task-add-subtask-input-dt-sub-1');
+    await user.type(addInput, 'Update docs{Enter}');
+    expect(onUpdateSubtasks).toHaveBeenLastCalledWith(
+      't-sub-1',
+      expect.arrayContaining([
+        expect.objectContaining({ title: 'Update docs', is_completed: false, order: 3 }),
+      ])
+    );
+    expect(screen.getByTestId('task-add-subtask-input-dt-sub-1')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByTestId('task-add-subtask-input-dt-sub-1')).not.toBeInTheDocument();
+  });
+
+  it('renders sub-tasks in read-only mode on Yesterday/historical cards without add/edit/delete controls', () => {
+    const task: TaskCardData = {
+      id: 'dt-y-sub',
+      taskId: 't-y-sub',
+      title: 'Yesterday Task With Subtasks',
+      status: 'YESTERDAY',
+      isCompleted: true,
+      subtasks: [
+        { id: 's-y1', title: 'Completed sub', is_completed: true, order: 1 },
+      ],
+    };
+
+    render(
+      <TaskCard
+        task={task}
+        index={0}
+        totalCount={1}
+        isReadOnly={true}
+      />
+    );
+
+    expect(screen.getByTestId('task-subtask-badge-dt-y-sub')).toHaveTextContent('1/1');
+    expect(screen.getByTestId('subtask-checkbox-s-y1')).toBeDisabled();
+    expect(screen.getByTestId('subtask-title-s-y1').tagName).toBe('SPAN');
+    expect(screen.queryByTestId('subtask-delete-s-y1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('task-add-subtask-trigger-dt-y-sub')).not.toBeInTheDocument();
+  });
 });

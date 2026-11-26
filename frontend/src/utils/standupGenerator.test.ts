@@ -102,4 +102,46 @@ describe('generateStandupMarkdown', () => {
     expect(markdown).toContain('**Sunday, Nov 22, 2026:**');
     expect(markdown).toContain('**Monday, Nov 23, 2026:**');
   });
+
+  it('renders 2-space indented sub-task bullets across Yesterday, Today, and Blocked', () => {
+    const sessionWithSubtasks: DaySessionWithTasks = {
+      ...mockSession,
+      tasks: {
+        yesterday: [
+          {
+            ...mockSession.tasks.yesterday[0],
+            subtasks: [{ id: 'sy-1', title: 'Add unit tests', is_completed: true, order: 1 }],
+          },
+        ],
+        today: [
+          {
+            ...mockSession.tasks.today[0],
+            subtasks: [
+              { id: 'st-1', title: 'Verify JWT claims', is_completed: true, order: 1 },
+              { id: 'st-2', title: 'Add rate limit test', is_completed: false, order: 2 },
+            ],
+          },
+        ],
+        blocked: [
+          {
+            ...mockSession.tasks.blocked[0],
+            subtasks: [{ id: 'sb-1', title: 'Request IAM binding', is_completed: false, order: 1 }],
+          },
+        ],
+      },
+    };
+
+    const markdown = generateStandupMarkdown(sessionWithSubtasks, { bulletStyle: '-' }, '2026-09-04');
+    expect(markdown).toContain('- Completed auth endpoints\n  - [x] Add unit tests');
+    expect(markdown).toContain(
+      '- [ ] Implement Calendar Widget (Priority 1)\n  - [x] Verify JWT claims\n  - [ ] Add rate limit test'
+    );
+    expect(markdown).toContain(
+      '- Staging Database Migration (Waiting on DevOps permissions)\n  - [ ] Request IAM binding'
+    );
+
+    const starMarkdown = generateStandupMarkdown(sessionWithSubtasks, { bulletStyle: '*' }, '2026-09-04');
+    expect(starMarkdown).toContain('  * [x] Verify JWT claims');
+    expect(starMarkdown).toContain('  * [ ] Add rate limit test');
+  });
 });

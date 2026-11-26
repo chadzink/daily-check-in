@@ -3,16 +3,18 @@ import { Layers } from 'lucide-react';
 import { ExecutionRow } from './ExecutionRow';
 import { TaskCard, TaskCardData } from './TaskCard';
 import { QuickAddInput } from './QuickAddInput';
-import { MasterTask } from '../../types/domain';
+import { MasterTask, Subtask } from '../../types/domain';
 
 interface BacklogRowProps {
   tasks: MasterTask[];
+  disablePull?: boolean;
   onPull: (taskId: string) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
   onMoveToIndex?: (fromIndex: number, toIndex: number) => void;
   onEdit: (task: TaskCardData) => void;
   onDelete: (task: TaskCardData) => void;
+  onUpdateSubtasks?: (taskId: string, subtasks: Subtask[]) => void;
   onAddTask: (title: string) => void;
   onOpenDetailedAdd?: () => void;
   isAddingTask?: boolean;
@@ -23,12 +25,14 @@ interface BacklogRowProps {
 
 export const BacklogRow: React.FC<BacklogRowProps> = ({
   tasks,
+  disablePull = false,
   onPull,
   onMoveUp,
   onMoveDown,
   onMoveToIndex,
   onEdit,
   onDelete,
+  onUpdateSubtasks,
   onAddTask,
   onOpenDetailedAdd,
   isAddingTask = false,
@@ -45,6 +49,7 @@ export const BacklogRow: React.FC<BacklogRowProps> = ({
     isCompleted: t.is_completed,
     completedAt: t.completed_at,
     priorityOrder: idx + 1,
+    subtasks: t.subtasks || [],
   }));
 
   return (
@@ -74,12 +79,14 @@ export const BacklogRow: React.FC<BacklogRowProps> = ({
           task={task}
           index={index}
           totalCount={cardDataList.length}
+          disablePull={disablePull}
           onPull={onPull}
           onMoveUp={onMoveUp}
           onMoveDown={onMoveDown}
           onMoveToIndex={onMoveToIndex}
           onEdit={onEdit}
           onDelete={onDelete}
+          onUpdateSubtasks={onUpdateSubtasks}
         />
       ))}
     </ExecutionRow>

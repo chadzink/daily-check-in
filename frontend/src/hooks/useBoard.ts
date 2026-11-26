@@ -6,6 +6,7 @@ import {
   updateDayTask,
   updateTask,
   archiveTask,
+  moveTaskToDate,
   pullBacklogTask,
   demoteDayTask,
   reorderDayTasksDirect,
@@ -20,11 +21,13 @@ import {
   DayStatus,
   DayTaskWithDetails,
   MasterTask,
+  MoveTaskToDatePayload,
+  Subtask,
 } from '../types/domain';
 
 export const queryKeys = {
   daySession: (date: string) => ['daySession', date] as const,
-  backlog: () => ['backlog'] as const,
+  backlog: (today?: string) => (today ? (['backlog', today] as const) : (['backlog'] as const)),
   completedReport: (start: string, end: string) => ['completedReport', start, end] as const,
 };
 
@@ -36,10 +39,10 @@ export function useDaySession(date: string) {
   });
 }
 
-export function useBacklog() {
+export function useBacklog(today?: string) {
   return useQuery({
-    queryKey: queryKeys.backlog(),
-    queryFn: fetchBacklog,
+    queryKey: queryKeys.backlog(today),
+    queryFn: () => fetchBacklog(today),
   });
 }
 
@@ -62,6 +65,9 @@ export function useToggleTaskCompletion(date: string) {
                 ...item,
                 is_completed: isCompleted,
                 completed_at: isCompleted ? new Date().toISOString() : null,
+                subtasks: isCompleted
+                  ? (item.subtasks || []).map((s) => ({ ...s, is_completed: true }))
+                  : item.subtasks || [],
               }
             : item
         );
@@ -70,9 +76,9 @@ export function useToggleTaskCompletion(date: string) {
         ...prevData,
         tasks: {
           ...prevData.tasks,
-          today: updateList(prevData.tasks.today),
-          blocked: updateList(prevData.tasks.blocked),
-          yesterday: updateList(prevData.tasks.yesterday),
+          today: updateList(prevData.tasks.today || []),
+          blocked: updateList(prevData.tasks.blocked || []),
+          yesterday: updateList(prevData.tasks.yesterday || []),
         },
       };
 
@@ -145,7 +151,7 @@ export function useReorderDayTasks(date: string) {
   });
 }
 
-export function usePullBacklogTask(date: string) {
+export function usePullBacklogTask(date: string, today?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -153,19 +159,34 @@ export function usePullBacklogTask(date: string) {
       taskId,
       status = 'TODAY',
       priorityOrder,
+      todayDate,
     }: {
       taskId: string;
       status?: DayStatus;
       priorityOrder?: number;
-    }) => pullBacklogTask(date, { task_id: taskId, status, priority_order: priorityOrder }),
+      todayDate?: string;
+    }) =>
+      pullBacklogTask(date, {
+        task_id: taskId,
+        status,
+        priority_order: priorityOrder,
+        today_date: todayDate ?? today,
+      }),
     onMutate: async ({ taskId, status = 'TODAY' }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.daySession(date) });
       await queryClient.cancelQueries({ queryKey: queryKeys.backlog() });
 
       const prevSession = queryClient.getQueryData<DaySessionWithTasks>(queryKeys.daySession(date));
-      const prevBacklog = queryClient.getQueryData<BacklogResponse>(queryKeys.backlog());
+      const prevBacklogs = queryClient.getQueriesData<BacklogResponse>({ queryKey: queryKeys.backlog() });
 
-      const pulledMaster = prevBacklog?.tasks.find((t) => t.id === taskId);
+      let pulledMaster: MasterTask | undefined;
+      for (const [, data] of prevBacklogs) {
+        const found = data?.tasks?.find((t) => t.id === taskId);
+        if (found) {
+          pulledMaster = found;
+          break;
+        }
+      }
 
       if (prevSession && pulledMaster) {
         const optimisticDayTask: DayTaskWithDetails = {
@@ -176,34 +197,36 @@ export function usePullBacklogTask(date: string) {
           status,
           is_completed: false,
           completed_at: null,
-          priority_order: prevSession.tasks.today.length + 1,
+          priority_order: (prevSession.tasks.today || []).length + 1,
           blocker_reason: null,
+          subtasks: pulledMaster.subtasks || [],
         };
 
         queryClient.setQueryData<DaySessionWithTasks>(queryKeys.daySession(date), {
           ...prevSession,
           tasks: {
             ...prevSession.tasks,
-            today: [...prevSession.tasks.today, optimisticDayTask],
+            today: [...(prevSession.tasks.today || []), optimisticDayTask],
           },
         });
       }
 
-      if (prevBacklog) {
-        queryClient.setQueryData<BacklogResponse>(queryKeys.backlog(), {
-          tasks: prevBacklog.tasks.filter((t) => t.id !== taskId),
-        });
-      }
+      queryClient.setQueriesData<BacklogResponse>({ queryKey: queryKeys.backlog() }, (old) => {
+        if (!old) return old;
+        return {
+          tasks: (old.tasks || []).filter((t) => t.id !== taskId),
+        };
+      });
 
-      return { prevSession, prevBacklog };
+      return { prevSession, prevBacklogs };
     },
     onError: (_err, _vars, context) => {
       if (context?.prevSession) {
         queryClient.setQueryData(queryKeys.daySession(date), context.prevSession);
       }
-      if (context?.prevBacklog) {
-        queryClient.setQueryData(queryKeys.backlog(), context.prevBacklog);
-      }
+      context?.prevBacklogs?.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.daySession(date) });
@@ -222,22 +245,24 @@ export function useDemoteDayTask(date: string) {
       await queryClient.cancelQueries({ queryKey: queryKeys.backlog() });
 
       const prevSession = queryClient.getQueryData<DaySessionWithTasks>(queryKeys.daySession(date));
-      const prevBacklog = queryClient.getQueryData<BacklogResponse>(queryKeys.backlog());
+      const prevBacklogs = queryClient.getQueriesData<BacklogResponse>({ queryKey: queryKeys.backlog() });
 
-      const demotingItem = prevSession?.tasks.today.find((t) => t.day_task_id === dayTaskId) ||
-        prevSession?.tasks.blocked.find((t) => t.day_task_id === dayTaskId);
+      const demotingItem =
+        prevSession?.tasks.today?.find((t) => t.day_task_id === dayTaskId) ||
+        prevSession?.tasks.blocked?.find((t) => t.day_task_id === dayTaskId);
 
       if (prevSession && demotingItem) {
         queryClient.setQueryData<DaySessionWithTasks>(queryKeys.daySession(date), {
           ...prevSession,
           tasks: {
             ...prevSession.tasks,
-            today: prevSession.tasks.today.filter((t) => t.day_task_id !== dayTaskId),
-            blocked: prevSession.tasks.blocked.filter((t) => t.day_task_id !== dayTaskId),
+            today: (prevSession.tasks.today || []).filter((t) => t.day_task_id !== dayTaskId),
+            blocked: (prevSession.tasks.blocked || []).filter((t) => t.day_task_id !== dayTaskId),
           },
         });
 
-        if (prevBacklog) {
+        queryClient.setQueriesData<BacklogResponse>({ queryKey: queryKeys.backlog() }, (old) => {
+          if (!old) return old;
           const restoredTask: MasterTask = {
             id: demotingItem.task_id,
             user_id: '',
@@ -246,25 +271,26 @@ export function useDemoteDayTask(date: string) {
             is_completed: demotingItem.is_completed,
             completed_at: demotingItem.completed_at,
             is_archived: false,
-            backlog_order: prevBacklog.tasks.length + 1,
+            backlog_order: (old.tasks || []).length + 1,
+            subtasks: demotingItem.subtasks || [],
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           };
-          queryClient.setQueryData<BacklogResponse>(queryKeys.backlog(), {
-            tasks: [...prevBacklog.tasks, restoredTask],
-          });
-        }
+          return {
+            tasks: [...(old.tasks || []), restoredTask],
+          };
+        });
       }
 
-      return { prevSession, prevBacklog };
+      return { prevSession, prevBacklogs };
     },
     onError: (_err, _vars, context) => {
       if (context?.prevSession) {
         queryClient.setQueryData(queryKeys.daySession(date), context.prevSession);
       }
-      if (context?.prevBacklog) {
-        queryClient.setQueryData(queryKeys.backlog(), context.prevBacklog);
-      }
+      context?.prevBacklogs?.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.daySession(date) });
@@ -417,24 +443,26 @@ export function useReorderBacklog() {
     mutationFn: (orderedTaskIds: string[]) => reorderBacklog(orderedTaskIds),
     onMutate: async (orderedTaskIds) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.backlog() });
-      const prevBacklog = queryClient.getQueryData<BacklogResponse>(queryKeys.backlog());
-      if (!prevBacklog) return { prevBacklog };
+      const prevBacklogs = queryClient.getQueriesData<BacklogResponse>({ queryKey: queryKeys.backlog() });
 
-      const map = new Map(prevBacklog.tasks.map((t) => [t.id, t]));
-      const sorted = orderedTaskIds
-        .map((id, idx) => {
-          const item = map.get(id);
-          return item ? { ...item, backlog_order: idx + 1 } : null;
-        })
-        .filter((t): t is MasterTask => t !== null);
+      queryClient.setQueriesData<BacklogResponse>({ queryKey: queryKeys.backlog() }, (old) => {
+        if (!old) return old;
+        const map = new Map((old.tasks || []).map((t) => [t.id, t]));
+        const sorted = orderedTaskIds
+          .map((id, idx) => {
+            const item = map.get(id);
+            return item ? { ...item, backlog_order: idx + 1 } : null;
+          })
+          .filter((t): t is MasterTask => t !== null);
+        return { tasks: sorted };
+      });
 
-      queryClient.setQueryData<BacklogResponse>(queryKeys.backlog(), { tasks: sorted });
-      return { prevBacklog };
+      return { prevBacklogs };
     },
     onError: (_err, _vars, context) => {
-      if (context?.prevBacklog) {
-        queryClient.setQueryData(queryKeys.backlog(), context.prevBacklog);
-      }
+      context?.prevBacklogs?.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.backlog() });
@@ -450,55 +478,94 @@ export function useUpdateTask(date: string) {
       taskId,
       title,
       description,
+      subtasks,
     }: {
       taskId: string;
-      title: string;
+      title?: string;
       description?: string;
-    }) => updateTask(taskId, { title, description }),
-    onMutate: async ({ taskId, title, description }) => {
+      subtasks?: Subtask[];
+    }) => updateTask(taskId, { title, description, subtasks }),
+    onMutate: async ({ taskId, title, description, subtasks }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.daySession(date) });
       await queryClient.cancelQueries({ queryKey: queryKeys.backlog() });
 
       const prevSession = queryClient.getQueryData<DaySessionWithTasks>(queryKeys.daySession(date));
-      const prevBacklog = queryClient.getQueryData<BacklogResponse>(queryKeys.backlog());
+      const prevBacklogs = queryClient.getQueriesData<BacklogResponse>({ queryKey: queryKeys.backlog() });
 
       if (prevSession) {
         const updateList = (list: DayTaskWithDetails[]) =>
           list.map((t) =>
             t.task_id === taskId
-              ? { ...t, title, description: description ?? t.description }
+              ? {
+                  ...t,
+                  title: title ?? t.title,
+                  description: description ?? t.description,
+                  subtasks: subtasks ?? t.subtasks ?? [],
+                }
               : t
           );
         queryClient.setQueryData<DaySessionWithTasks>(queryKeys.daySession(date), {
           ...prevSession,
           tasks: {
             ...prevSession.tasks,
-            today: updateList(prevSession.tasks.today),
-            blocked: updateList(prevSession.tasks.blocked),
+            today: updateList(prevSession.tasks.today || []),
+            blocked: updateList(prevSession.tasks.blocked || []),
           },
         });
       }
 
-      if (prevBacklog) {
-        queryClient.setQueryData<BacklogResponse>(queryKeys.backlog(), {
-          tasks: prevBacklog.tasks.map((t) =>
-            t.id === taskId ? { ...t, title, description: description ?? t.description } : t
+      queryClient.setQueriesData<BacklogResponse>({ queryKey: queryKeys.backlog() }, (old) => {
+        if (!old) return old;
+        return {
+          tasks: (old.tasks || []).map((t) =>
+            t.id === taskId
+              ? {
+                  ...t,
+                  title: title ?? t.title,
+                  description: description ?? t.description,
+                  subtasks: subtasks ?? t.subtasks ?? [],
+                }
+              : t
           ),
-        });
-      }
+        };
+      });
 
-      return { prevSession, prevBacklog };
+      return { prevSession, prevBacklogs };
     },
     onError: (_err, _vars, context) => {
       if (context?.prevSession) {
         queryClient.setQueryData(queryKeys.daySession(date), context.prevSession);
       }
-      if (context?.prevBacklog) {
-        queryClient.setQueryData(queryKeys.backlog(), context.prevBacklog);
-      }
+      context?.prevBacklogs?.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.daySession(date) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.backlog() });
+    },
+  });
+}
+
+export function useMoveTaskToDate(sourceDate: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      taskId,
+      payload,
+    }: {
+      taskId: string;
+      payload: MoveTaskToDatePayload;
+    }) => moveTaskToDate(taskId, payload),
+    onSettled: (_data, _err, variables) => {
+      if (sourceDate) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.daySession(sourceDate) });
+      }
+      if (variables.payload.source_date && variables.payload.source_date !== sourceDate) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.daySession(variables.payload.source_date) });
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.daySession(variables.payload.target_date) });
       queryClient.invalidateQueries({ queryKey: queryKeys.backlog() });
     },
   });
@@ -514,34 +581,35 @@ export function useArchiveTask(date: string) {
       await queryClient.cancelQueries({ queryKey: queryKeys.backlog() });
 
       const prevSession = queryClient.getQueryData<DaySessionWithTasks>(queryKeys.daySession(date));
-      const prevBacklog = queryClient.getQueryData<BacklogResponse>(queryKeys.backlog());
+      const prevBacklogs = queryClient.getQueriesData<BacklogResponse>({ queryKey: queryKeys.backlog() });
 
       if (prevSession) {
         queryClient.setQueryData<DaySessionWithTasks>(queryKeys.daySession(date), {
           ...prevSession,
           tasks: {
             ...prevSession.tasks,
-            today: prevSession.tasks.today.filter((t) => t.task_id !== taskId),
-            blocked: prevSession.tasks.blocked.filter((t) => t.task_id !== taskId),
+            today: (prevSession.tasks.today || []).filter((t) => t.task_id !== taskId),
+            blocked: (prevSession.tasks.blocked || []).filter((t) => t.task_id !== taskId),
           },
         });
       }
 
-      if (prevBacklog) {
-        queryClient.setQueryData<BacklogResponse>(queryKeys.backlog(), {
-          tasks: prevBacklog.tasks.filter((t) => t.id !== taskId),
-        });
-      }
+      queryClient.setQueriesData<BacklogResponse>({ queryKey: queryKeys.backlog() }, (old) => {
+        if (!old) return old;
+        return {
+          tasks: (old.tasks || []).filter((t) => t.id !== taskId),
+        };
+      });
 
-      return { prevSession, prevBacklog };
+      return { prevSession, prevBacklogs };
     },
     onError: (_err, _vars, context) => {
       if (context?.prevSession) {
         queryClient.setQueryData(queryKeys.daySession(date), context.prevSession);
       }
-      if (context?.prevBacklog) {
-        queryClient.setQueryData(queryKeys.backlog(), context.prevBacklog);
-      }
+      context?.prevBacklogs?.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.daySession(date) });

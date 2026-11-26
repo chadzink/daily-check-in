@@ -34,6 +34,14 @@ type DaySession struct {
 	UpdatedAt  time.Time  `firestore:"updated_at" json:"updated_at"`
 }
 
+// Subtask represents a lightweight title-only sub-task embedded on a master Task
+type Subtask struct {
+	ID          string `firestore:"id" json:"id"`
+	Title       string `firestore:"title" json:"title"`
+	IsCompleted bool   `firestore:"is_completed" json:"is_completed"`
+	Order       int    `firestore:"order" json:"order"`
+}
+
 // Task represents a persistent master task in the user's global task pool
 type Task struct {
 	ID           string     `firestore:"id" json:"id"`
@@ -44,6 +52,7 @@ type Task struct {
 	CompletedAt  *time.Time `firestore:"completed_at" json:"completed_at"`
 	IsArchived   bool       `firestore:"is_archived" json:"is_archived"`
 	BacklogOrder int        `firestore:"backlog_order" json:"backlog_order"`
+	Subtasks     []Subtask  `firestore:"subtasks" json:"subtasks"`
 	CreatedAt    time.Time  `firestore:"created_at" json:"created_at"`
 	UpdatedAt    time.Time  `firestore:"updated_at" json:"updated_at"`
 }
@@ -73,6 +82,7 @@ type DayTaskWithDetails struct {
 	CompletedAt   *time.Time `json:"completed_at"`
 	PriorityOrder int        `json:"priority_order"`
 	BlockerReason *string    `json:"blocker_reason"`
+	Subtasks      []Subtask  `json:"subtasks"`
 }
 
 // DayTasksGrouped groups tasks by execution status
@@ -102,11 +112,20 @@ type CreateTaskRequest struct {
 
 // UpdateTaskRequest specifies mutable properties of a master task
 type UpdateTaskRequest struct {
-	Title        *string `json:"title,omitempty"`
-	Description  *string `json:"description,omitempty"`
-	IsCompleted  *bool   `json:"is_completed,omitempty"`
-	BacklogOrder *int    `json:"backlog_order,omitempty"`
-	IsArchived   *bool   `json:"is_archived,omitempty"`
+	Title        *string    `json:"title,omitempty"`
+	Description  *string    `json:"description,omitempty"`
+	IsCompleted  *bool      `json:"is_completed,omitempty"`
+	BacklogOrder *int       `json:"backlog_order,omitempty"`
+	IsArchived   *bool      `json:"is_archived,omitempty"`
+	Subtasks     *[]Subtask `json:"subtasks,omitempty"`
+}
+
+// MoveTaskToDateRequest specifies parameters to move/schedule a task onto a future date
+type MoveTaskToDateRequest struct {
+	TargetDate string `json:"target_date"`
+	SourceDate string `json:"source_date,omitempty"`
+	DayTaskID  string `json:"day_task_id,omitempty"`
+	TodayDate  string `json:"today_date,omitempty"`
 }
 
 // ReorderBacklogRequest holds ordered task IDs for backlog reordering
@@ -147,6 +166,7 @@ type PullDayTaskRequest struct {
 	TaskID        string    `json:"task_id"`
 	Status        DayStatus `json:"status,omitempty"`
 	PriorityOrder int       `json:"priority_order,omitempty"`
+	TodayDate     string    `json:"today_date,omitempty"`
 }
 
 // ReorderDayTasksRequest holds ordered day task IDs for reordering within a day
@@ -160,16 +180,18 @@ type ReorderDayTasksRequest struct {
 type RolloverAction string
 
 const (
-	RolloverToToday   RolloverAction = "ROLLOVER"
-	RolloverDemote    RolloverAction = "DEMOTE"
-	RolloverCompleted RolloverAction = "COMPLETE"
+	RolloverToToday     RolloverAction = "ROLLOVER"
+	RolloverKeepBlocked RolloverAction = "KEEP_BLOCKED"
+	RolloverDemote      RolloverAction = "DEMOTE"
+	RolloverCompleted   RolloverAction = "COMPLETE"
 )
 
 // RolloverDecision captures the user's action on an incomplete task
 type RolloverDecision struct {
-	DayTaskID string         `json:"day_task_id"`
-	TaskID    string         `json:"task_id"`
-	Action    RolloverAction `json:"action"`
+	DayTaskID     string         `json:"day_task_id"`
+	TaskID        string         `json:"task_id"`
+	Action        RolloverAction `json:"action"`
+	BlockerReason string         `json:"blocker_reason,omitempty"`
 }
 
 // CheckInContextResponse provides pre-flight data to populate Morning Check-In wizard

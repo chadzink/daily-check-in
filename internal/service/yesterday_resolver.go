@@ -65,10 +65,9 @@ func resolveYesterdayCompletedTasks(
 
 		result := make([]model.DayTaskWithDetails, 0, len(completed))
 		for _, dt := range completed {
-			var title, description string
-			if masterTask, ok := tasksMap[dt.TaskID]; ok && masterTask != nil {
-				title = masterTask.Title
-				description = masterTask.Description
+			masterTask, ok := tasksMap[dt.TaskID]
+			if !ok || masterTask == nil || masterTask.IsArchived {
+				continue
 			}
 
 			var blockerPtr *string
@@ -80,14 +79,19 @@ func resolveYesterdayCompletedTasks(
 			result = append(result, model.DayTaskWithDetails{
 				DayTaskID:     dt.ID,
 				TaskID:        dt.TaskID,
-				Title:         title,
-				Description:   description,
+				Title:         masterTask.Title,
+				Description:   masterTask.Description,
 				Status:        model.StatusYesterday,
 				IsCompleted:   true,
 				CompletedAt:   dt.CompletedAt,
 				PriorityOrder: dt.PriorityOrder,
 				BlockerReason: blockerPtr,
+				Subtasks:      normalizeSubtasks(masterTask.Subtasks),
 			})
+		}
+
+		if len(result) == 0 {
+			continue
 		}
 
 		return sess.Date, result, nil

@@ -22,6 +22,7 @@ type DayTaskRepository interface {
 	Update(ctx context.Context, userID, date string, dayTask *model.DayTask) error
 	Delete(ctx context.Context, userID, date, dayTaskID string) error
 	Reorder(ctx context.Context, userID, date string, orderedDayTaskIDs []string) error
+	MoveAtomic(ctx context.Context, userID, sourceDate, sourceDayTaskID, targetDate string, targetSession *model.DaySession, targetDayTask *model.DayTask) error
 }
 
 type firestoreDayTaskRepository struct {
@@ -192,6 +193,65 @@ func (r *firestoreDayTaskRepository) Reorder(ctx context.Context, userID, date s
 
 	if _, err := batch.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit day tasks reorder batch: %w", err)
+	}
+	return nil
+}
+
+// MoveAtomic atomically ensures the target day session exists, upserts the target DayTask,
+// and optionally deletes the source DayTask in a single Firestore WriteBatch.
+func (r *firestoreDayTaskRepository) MoveAtomic(
+	ctx context.Context,
+	userID, sourceDate, sourceDayTaskID, targetDate string,
+	targetSession *model.DaySession,
+	targetDayTask *model.DayTask,
+) error {
+	if userID == "" || targetDate == "" || targetDayTask == nil || targetDayTask.TaskID == "" {
+		return fmt.Errorf("%w: user_id, target_date, and target_day_task are required", model.ErrInvalidInput)
+	}
+
+	if targetDayTask.ID == "" {
+		targetDayTask.ID = uuid.New().String()
+	}
+	targetDayTask.DaySessionID = targetDate
+
+	now := time.Now().UTC()
+	if targetDayTask.CreatedAt.IsZero() {
+		targetDayTask.CreatedAt = now
+	}
+	targetDayTask.UpdatedAt = now
+
+	batch := r.client.Batch()
+
+	// Ensure target day_sessions/{targetDate} document exists without clobbering existing session metadata
+	targetSessionRef := r.client.Collection("users").Doc(userID).Collection("day_sessions").Doc(targetDate)
+	if _, err := targetSessionRef.Get(ctx); err != nil {
+		if status.Code(err) == codes.NotFound {
+			sess := targetSession
+			if sess == nil {
+				sess = &model.DaySession{
+					ID:        targetDate,
+					UserID:    userID,
+					Date:      targetDate,
+					CreatedAt: now,
+					UpdatedAt: now,
+				}
+			}
+			batch.Set(targetSessionRef, sess)
+		} else {
+			return fmt.Errorf("failed to inspect target day session: %w", err)
+		}
+	}
+
+	targetDocRef := r.dayTasksColl(userID, targetDate).Doc(targetDayTask.ID)
+	batch.Set(targetDocRef, targetDayTask)
+
+	if sourceDate != "" && sourceDayTaskID != "" {
+		sourceDocRef := r.dayTasksColl(userID, sourceDate).Doc(sourceDayTaskID)
+		batch.Delete(sourceDocRef)
+	}
+
+	if _, err := batch.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit atomic task move batch: %w", err)
 	}
 	return nil
 }
