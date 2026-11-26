@@ -7,6 +7,7 @@ import {
   DaySessionWithTasks,
   DayTaskWithDetails,
   MasterTask,
+  MoveTaskToDatePayload,
   PullDayTaskPayload,
   ReorderDayTasksPayload,
   UpdateDaySessionPayload,
@@ -16,8 +17,9 @@ import {
 import { authFetch, BASE_URL, handleResponse } from './client';
 
 // Backlog API
-export async function fetchBacklog(): Promise<BacklogResponse> {
-  const res = await authFetch(`${BASE_URL}/backlog`);
+export async function fetchBacklog(today?: string): Promise<BacklogResponse> {
+  const query = today ? `?today=${encodeURIComponent(today)}` : '';
+  const res = await authFetch(`${BASE_URL}/backlog${query}`);
   return handleResponse<BacklogResponse>(res);
 }
 
@@ -178,6 +180,18 @@ export async function archiveTask(id: string): Promise<{ archived: boolean }> {
     method: 'DELETE',
   });
   return handleResponse<{ archived: boolean }>(res);
+}
+
+export async function moveTaskToDate(
+  taskId: string,
+  payload: MoveTaskToDatePayload
+): Promise<DayTaskWithDetails> {
+  const res = await authFetch(`${BASE_URL}/tasks/${taskId}/move`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<DayTaskWithDetails>(res);
 }
 
 // Reports API

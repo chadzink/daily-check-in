@@ -68,7 +68,7 @@ func TestTaskServiceLifecycle(t *testing.T) {
 	err = taskSvc.ArchiveTask(ctx, userID, task.ID)
 	require.NoError(t, err)
 
-	backlog, err := taskSvc.ListBacklog(ctx, userID)
+	backlog, err := taskSvc.ListBacklog(ctx, userID, "")
 	require.NoError(t, err)
 	assert.Empty(t, backlog.Tasks)
 }
@@ -138,6 +138,7 @@ func TestDaySessionService_PullDemotePatchReorder(t *testing.T) {
 		TaskID:        task1.ID,
 		Status:        model.StatusToday,
 		PriorityOrder: 1,
+		TodayDate:     date,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, task1.ID, pulled1.TaskID)
@@ -148,6 +149,7 @@ func TestDaySessionService_PullDemotePatchReorder(t *testing.T) {
 		TaskID:        task2.ID,
 		Status:        model.StatusToday,
 		PriorityOrder: 2,
+		TodayDate:     date,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 2, pulled2.PriorityOrder)

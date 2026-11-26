@@ -25,6 +25,7 @@ describe('StandupExportModal Component', () => {
           status: 'YESTERDAY',
           is_completed: true,
           priority_order: 1,
+          subtasks: [],
         },
       ],
       today: [
@@ -36,6 +37,7 @@ describe('StandupExportModal Component', () => {
           status: 'TODAY',
           is_completed: false,
           priority_order: 1,
+          subtasks: [],
         },
       ],
       blocked: [
@@ -48,6 +50,7 @@ describe('StandupExportModal Component', () => {
           is_completed: false,
           priority_order: 1,
           blocker_reason: 'Waiting for IAM permissions',
+          subtasks: [],
         },
       ],
     },

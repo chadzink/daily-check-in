@@ -23,6 +23,7 @@ flowchart TD
     M12["Milestone 12: Completed Tasks Cleanup, Reports & Ordering<br>(PLAN-012)"]
     M13["Milestone 13: Relative Date Labels & Markdown Daily Notes<br>(PLAN-013)"]
     M14["Milestone 14: Yesterday Fix, Collapsible Rows & Reorder<br>(PLAN-014)"]
+    M15["Milestone 15: Board Fixes, Future Rescheduling, Blocked Rollover & Sub-tasks<br>(PLAN-015)"]
 
     M1 --> M2
     M2 --> M3
@@ -37,6 +38,7 @@ flowchart TD
     M11 --> M12
     M12 --> M13
     M13 --> M14
+    M14 --> M15
 ```
 
 ---
@@ -193,3 +195,12 @@ flowchart TD
   - `internal/service/day_session_service.go`, `ritual_service.go`, `report_service.go`, `calendar_service.go`, and `internal/model/domain.go` (`yesterday_date` + dynamic lookback + legacy `StatusYesterday` guards + regression tests).
   - `frontend/src/components/board/ExecutionRow.tsx`, `DailyBoard.tsx`, `YesterdayRow.tsx`, and `frontend/src/types/domain.ts` (collapsible rows with `localStorage` persistence, `N`/`B` auto-expand, Yesterday date hint, and row reorder).
 - **Sign-Off:** **Implemented & QA Verified (Pending Merge Sign-Off)** (`test-reports/QA-REPORT-014-yesterday-fix-collapsible-rows-and-reorder-2026-11-25.md`).
+
+---
+
+### 🧩 Milestone / Batch 15: Board Fixes, Future-Date Rescheduling, Blocked Rollover & Inline Sub-tasks (PLAN-015)
+- **Focus:** Disable Backlog pull on past dates while keeping Backlog editable, support moving tasks (Today/Blocked/Backlog) to future dates when editing, exclude archived tasks from Morning Check-In (with regression test), preserve blocked tasks and blocker reasons during Step 2 rollover, hide Today/future committed tasks from Backlog across all dates, and add inline title-only sub-tasks with Standup Markdown export.
+- **Deliverables:**
+  - `internal/model/domain.go`, `internal/repository/day_session_repo.go`, `task_repo.go`, `internal/service/day_session_service.go`, `task_service.go`, `ritual_service.go`, `internal/api/days.go`, `tasks.go`, `backlog.go`.
+  - `frontend/src/components/board/DailyBoard.tsx`, `BacklogRow.tsx`, `TaskCard.tsx`, `SubtaskList.tsx`, `EditTaskModal.tsx`, `frontend/src/components/wizards/Step2RolloverTriage.tsx`, `MorningCheckInModal.tsx`, `frontend/src/utils/standupGenerator.ts`, `frontend/src/hooks/useBoard.ts`, and `frontend/src/types/domain.ts`.
+- **Sign-Off:** **Implemented & QA Verified (Pending Merge Sign-Off)** (`test-reports/QA-REPORT-015-board-fixes-rescheduling-and-subtasks-2026-11-26.md`).

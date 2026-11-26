@@ -34,8 +34,15 @@ func (h *BacklogHandler) GetBacklog(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, model.StandardErrorResponse{Error: "Unauthorized"})
 	}
 
-	resp, err := h.taskService.ListBacklog(c.Request().Context(), userID)
+	today := c.QueryParam("today")
+	resp, err := h.taskService.ListBacklog(c.Request().Context(), userID, today)
 	if err != nil {
+		if errors.Is(err, model.ErrInvalidInput) {
+			return c.JSON(http.StatusBadRequest, model.StandardErrorResponse{
+				Error:   "BadRequest",
+				Message: err.Error(),
+			})
+		}
 		return c.JSON(http.StatusInternalServerError, model.StandardErrorResponse{
 			Error:   "InternalServerError",
 			Message: err.Error(),

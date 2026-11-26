@@ -103,12 +103,14 @@ func (s *daySessionService) GetDaySessionWithTasks(ctx context.Context, userID, 
 		}
 
 		var title, description string
+		subtasks := make([]model.Subtask, 0)
 		if masterTask, ok := tasksMap[dt.TaskID]; ok {
 			if masterTask.IsArchived {
 				continue
 			}
 			title = masterTask.Title
 			description = masterTask.Description
+			subtasks = normalizeSubtasks(masterTask.Subtasks)
 		}
 
 		var blockerPtr *string
@@ -127,6 +129,7 @@ func (s *daySessionService) GetDaySessionWithTasks(ctx context.Context, userID, 
 			CompletedAt:   dt.CompletedAt,
 			PriorityOrder: dt.PriorityOrder,
 			BlockerReason: blockerPtr,
+			Subtasks:      subtasks,
 		}
 
 		switch dt.Status {
@@ -238,6 +241,7 @@ func (s *daySessionService) CreateDayTask(ctx context.Context, userID, date stri
 		CompletedAt:   dayTask.CompletedAt,
 		PriorityOrder: dayTask.PriorityOrder,
 		BlockerReason: blockerPtr,
+		Subtasks:      normalizeSubtasks(masterTask.Subtasks),
 	}, nil
 }
 
@@ -265,10 +269,13 @@ func (s *daySessionService) UpdateDayTask(ctx context.Context, userID, date, day
 		} else {
 			dayTask.CompletedAt = nil
 		}
-		// Synchronize completion with master task
+		// Synchronize completion with master task (one-way cascade to subtasks when completing)
 		if masterTask, err := s.taskRepo.GetByID(ctx, userID, dayTask.TaskID); err == nil && masterTask != nil {
 			masterTask.IsCompleted = *req.IsCompleted
 			masterTask.CompletedAt = dayTask.CompletedAt
+			if *req.IsCompleted {
+				completeAllSubtasks(masterTask)
+			}
 			_ = s.taskRepo.Update(ctx, masterTask)
 		}
 	}
@@ -285,9 +292,11 @@ func (s *daySessionService) UpdateDayTask(ctx context.Context, userID, date, day
 
 	masterTask, _ := s.taskRepo.GetByID(ctx, userID, dayTask.TaskID)
 	var title, description string
+	subtasks := make([]model.Subtask, 0)
 	if masterTask != nil {
 		title = masterTask.Title
 		description = masterTask.Description
+		subtasks = normalizeSubtasks(masterTask.Subtasks)
 	}
 
 	var blockerPtr *string
@@ -306,6 +315,7 @@ func (s *daySessionService) UpdateDayTask(ctx context.Context, userID, date, day
 		CompletedAt:   dayTask.CompletedAt,
 		PriorityOrder: dayTask.PriorityOrder,
 		BlockerReason: blockerPtr,
+		Subtasks:      subtasks,
 	}, nil
 }
 
@@ -329,6 +339,16 @@ func (s *daySessionService) PullDayTask(ctx context.Context, userID, date string
 	}
 	if date == "" || req.TaskID == "" {
 		return nil, fmt.Errorf("%w: date and task_id are required", model.ErrInvalidInput)
+	}
+	if !isValidDateYYYYMMDD(date) {
+		return nil, fmt.Errorf("%w: invalid date format (expected YYYY-MM-DD)", model.ErrInvalidInput)
+	}
+	today, err := resolveTodayDate(req.TodayDate)
+	if err != nil {
+		return nil, err
+	}
+	if date < today {
+		return nil, fmt.Errorf("%w: cannot pull tasks into a past date", model.ErrInvalidInput)
 	}
 
 	// Ensure session exists
@@ -405,10 +425,13 @@ func (s *daySessionService) PatchDayTask(ctx context.Context, userID, dayTaskID 
 		} else {
 			dayTask.CompletedAt = nil
 		}
-		// Synchronize completion with master task
+		// Synchronize completion with master task (one-way cascade to subtasks when completing)
 		if masterTask, err := s.taskRepo.GetByID(ctx, userID, dayTask.TaskID); err == nil && masterTask != nil {
 			masterTask.IsCompleted = *req.IsCompleted
 			masterTask.CompletedAt = dayTask.CompletedAt
+			if *req.IsCompleted {
+				completeAllSubtasks(masterTask)
+			}
 			_ = s.taskRepo.Update(ctx, masterTask)
 		}
 	}

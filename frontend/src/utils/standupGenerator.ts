@@ -26,6 +26,12 @@ export function generateStandupMarkdown(
   const blockedTasks = data?.tasks?.blocked || [];
 
   const lines: string[] = [];
+  const appendSubtasks = (subtasks?: { title: string; is_completed: boolean }[]) => {
+    for (const sub of subtasks || []) {
+      const subCheckbox = sub.is_completed ? '[x]' : '[ ]';
+      lines.push(`  ${bullet} ${subCheckbox} ${sub.title}`);
+    }
+  };
 
   // 1. Yesterday Section
   lines.push(`**${yesterdayLabel}:**`);
@@ -34,6 +40,7 @@ export function generateStandupMarkdown(
   } else {
     for (const task of yesterdayTasks) {
       lines.push(`${bullet} ${task.title}`);
+      appendSubtasks(task.subtasks);
     }
   }
   lines.push('');
@@ -52,6 +59,7 @@ export function generateStandupMarkdown(
       const checkbox = task.is_completed ? '[x]' : '[ ]';
       const priority = task.priority_order ? ` (Priority ${task.priority_order})` : '';
       lines.push(`${bullet} ${checkbox} ${task.title}${priority}`);
+      appendSubtasks(task.subtasks);
     }
   }
   lines.push('');
@@ -67,6 +75,7 @@ export function generateStandupMarkdown(
       } else {
         lines.push(`${bullet} ${task.title}`);
       }
+      appendSubtasks(task.subtasks);
     }
   }
 

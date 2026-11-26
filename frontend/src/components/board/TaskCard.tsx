@@ -10,8 +10,10 @@ import {
   ShieldAlert,
   Pencil,
   Trash2,
+  ListChecks,
 } from 'lucide-react';
-import { DayStatus } from '../../types/domain';
+import { DayStatus, Subtask } from '../../types/domain';
+import { SubtaskList } from './SubtaskList';
 
 export interface TaskCardData {
   id: string; // day_task_id or task_id for backlog
@@ -23,6 +25,7 @@ export interface TaskCardData {
   completedAt?: string | null;
   priorityOrder?: number;
   blockerReason?: string | null;
+  subtasks?: Subtask[];
 }
 
 interface TaskCardProps {
@@ -30,6 +33,7 @@ interface TaskCardProps {
   index: number;
   totalCount?: number;
   isReadOnly?: boolean;
+  disablePull?: boolean;
   onToggleComplete?: (dayTaskId: string, isCompleted: boolean) => void;
   onDemote?: (dayTaskId: string) => void;
   onPull?: (taskId: string) => void;
@@ -40,6 +44,7 @@ interface TaskCardProps {
   onMoveToIndex?: (fromIndex: number, toIndex: number) => void;
   onEdit?: (task: TaskCardData) => void;
   onDelete?: (task: TaskCardData) => void;
+  onUpdateSubtasks?: (taskId: string, subtasks: Subtask[]) => void;
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({
@@ -47,6 +52,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   index,
   totalCount = 1,
   isReadOnly = false,
+  disablePull = false,
   onToggleComplete,
   onDemote,
   onPull,
@@ -57,6 +63,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onMoveToIndex,
   onEdit,
   onDelete,
+  onUpdateSubtasks,
 }) => {
   const [isEditingRank, setIsEditingRank] = useState(false);
   const [rankInput, setRankInput] = useState('');
@@ -66,6 +73,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const isBlocked = task.status === 'BLOCKED';
   const isBacklog = task.status === 'BACKLOG';
   const canMutate = !isReadOnly && !isYesterday;
+  const subtasks = task.subtasks || [];
+  const completedSubtasks = subtasks.filter((s) => s.is_completed).length;
+  const allSubtasksDone = subtasks.length > 0 && completedSubtasks === subtasks.length;
 
   const commitRankJump = () => {
     setIsEditingRank(false);
@@ -198,15 +208,30 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
           {/* Title & Description */}
           <div className="flex-1 min-w-0">
-            <p
-              className={`text-xs sm:text-sm font-medium tracking-tight break-words ${
-                task.isCompleted
-                  ? 'line-through text-slate-500'
-                  : 'text-slate-200'
-              }`}
-            >
-              {task.title}
-            </p>
+            <div className="flex items-center flex-wrap gap-1.5">
+              <p
+                className={`text-xs sm:text-sm font-medium tracking-tight break-words ${
+                  task.isCompleted
+                    ? 'line-through text-slate-500'
+                    : 'text-slate-200'
+                }`}
+              >
+                {task.title}
+              </p>
+              {subtasks.length > 0 && (
+                <span
+                  data-testid={`task-subtask-badge-${task.id}`}
+                  className={`inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold border flex-shrink-0 ${
+                    allSubtasksDone
+                      ? 'text-emerald-300 bg-emerald-500/15 border-emerald-500/30'
+                      : 'text-slate-300 bg-slate-800 border-slate-700'
+                  }`}
+                >
+                  <ListChecks className="h-3 w-3" />
+                  <span>{completedSubtasks}/{subtasks.length}</span>
+                </span>
+              )}
+            </div>
             {task.description && (
               <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                 {task.description}
@@ -226,6 +251,20 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               <p className="text-[10px] text-emerald-400/80 mt-1 font-mono">
                 Completed at {formatTimestamp(task.completedAt)}
               </p>
+            )}
+
+            {/* Inline Sub-tasks */}
+            {(subtasks.length > 0 || (canMutate && onUpdateSubtasks)) && (
+              <SubtaskList
+                taskId={task.id}
+                subtasks={subtasks}
+                isReadOnly={!canMutate || !onUpdateSubtasks}
+                onUpdateSubtasks={
+                  onUpdateSubtasks
+                    ? (nextSubtasks) => onUpdateSubtasks(task.taskId, nextSubtasks)
+                    : undefined
+                }
+              />
             )}
           </div>
         </div>
@@ -280,9 +319,17 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               <button
                 type="button"
                 data-testid={`task-pull-${task.id}`}
-                onClick={() => onPull(task.taskId)}
-                className="px-2 py-1 rounded-md text-[11px] font-semibold text-violet-300 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/30 flex items-center space-x-1 transition-all"
-                title="Pull into Today's execution list"
+                disabled={disablePull}
+                aria-disabled={disablePull ? 'true' : undefined}
+                onClick={() => {
+                  if (!disablePull) onPull(task.taskId);
+                }}
+                className={
+                  disablePull
+                    ? 'px-2 py-1 rounded-md text-[11px] font-semibold cursor-not-allowed opacity-60 text-slate-500 bg-slate-800/60 border border-slate-700/60 flex items-center space-x-1 transition-all'
+                    : 'px-2 py-1 rounded-md text-[11px] font-semibold text-violet-300 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/30 flex items-center space-x-1 transition-all'
+                }
+                title={disablePull ? 'Cannot pull tasks into a past date' : "Pull into Today's execution list"}
               >
                 <ArrowUpToLine className="h-3 w-3" />
                 <span>Pull</span>

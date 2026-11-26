@@ -16,7 +16,7 @@ A **Day Entry** (`DaySession`) represents a distinct workday with explicit sessi
 
 ### 1.2 Multi-Day Task Model & Day-Task Associations
 Tasks are persistent entities that can span across multiple days. A task has a master identity (`Task`) and day-specific instances/logs (`DayTask`):
-- **Master Task (`Task`)**: Holds the title, description/notes, tags, overall completion state (`is_completed`, `completed_at`), archive state, backlog priority rank (`backlog_order`), and original creation timestamp. Unassigned tasks in this master pool constitute the user's persistent, cross-day **Global Backlog**.
+- **Master Task (`Task`)**: Holds the title, description/notes, tags, embedded title-only `subtasks` array (`id`, `title`, `is_completed`, `order`), overall completion state (`is_completed`, `completed_at`), archive state, backlog priority rank (`backlog_order`), and original creation timestamp. Unassigned tasks in this master pool constitute the user's persistent, cross-day **Global Backlog** (excluding tasks currently unfinished in Today or any future date session).
 - **DayTask Association (`DayTask`)**: Binds a task committed to a specific `DaySession`, capturing:
   - `status_for_day`: Row/section during that day (`YESTERDAY`, `TODAY`, `BLOCKED`). (Note: Backlog is managed globally at the master `Task` level; a `DayTask` is only created when committed to a day).
   - `is_completed`: Boolean indicating if the task was marked completed on this day.
@@ -90,7 +90,7 @@ The application organizes tasks into four distinct core sections:
    - **Row 1 - Today (or relative formatted date on non-current days):** The active, ordered list for the current day with a wide inline Quick Add + **Details** modal button (new tasks insert at `#1`), Up/Down arrow buttons, clickable `#N` jump-to-index rank badge, Edit/Delete modals, and a "Mark as Blocked" icon button. Checkbox immediately stamps `completed_at` via `PATCH /api/days/:date/tasks/:id`.
    - **Row 2 - Yesterday (or relative formatted date on non-current days):** Dynamically displays tasks marked completed on the most recent prior day with at least one completed task (read-only), with a subtle muted date hint (e.g., `· Mon, Nov 23`) when older than calendar yesterday.
    - **Row 3 - Blocked:** Tasks marked as blocked, with visible blocker explanation chip/text, Quick Add + **Details** modal, Up/Down & `#N` jump-to-index ordering, Edit/Delete modals, and 1-click Unblock.
-   - **Row 4 - Backlog:** Persistent global pool of incomplete, unarchived master tasks (`is_completed = false`, `is_archived = false`), with wide inline Quick Add + **Details** modal (new tasks insert at `#1`), Up/Down & `#N` jump-to-index ordering, Edit/Delete modals, and 1-click "Pull into Today" quick actions.
+   - **Row 4 - Backlog:** Persistent global pool of incomplete, unarchived master tasks (`is_completed = false`, `is_archived = false`) that are not unfinished in Today or any future date session, with wide inline Quick Add + **Details** modal (new tasks insert at `#1`), Up/Down & `#N` jump-to-index ordering, Edit/Delete modals (with optional future-date rescheduling), inline title-only sub-tasks, and 1-click "Pull into Today" quick actions (disabled on historical past dates while keeping Backlog management editable).
 
 ---
 
@@ -231,6 +231,7 @@ users/{userId}
   │     ├── completed_at: Timestamp (nullable)
   │     ├── is_archived: boolean
   │     ├── backlog_order: number          // Global rank in backlog pool
+  │     ├── subtasks: Array<{ id, title, is_completed, order }>
   │     ├── created_at: Timestamp
   │     └── updated_at: Timestamp
   │
@@ -331,6 +332,7 @@ All error responses from the Echo backend follow a unified JSON envelope:
 
 #### `GET /api/backlog`
 - **Headers:** `Authorization: Bearer <ID_TOKEN>`
+- **Query Params:** `today=YYYY-MM-DD` (optional; client local date, defaults to server UTC date). Excludes tasks with an unfinished non-`YESTERDAY` `DayTask` on `date >= today`.
 - **Response `200 OK`:**
 ```json
 {
@@ -377,16 +379,30 @@ All error responses from the Echo backend follow a unified JSON envelope:
 - **Response `200 OK`:** Returns `{ "success": true }`.
 
 #### `POST /api/days/:date/pull`
-- **Description:** Pulls a task from the global backlog into the specified day session.
+- **Description:** Pulls a task from the global backlog into the specified day session. Rejects past dates (`date < today_date`) with `400 Bad Request`.
 - **Request Body:**
 ```json
 {
   "task_id": "t-4",
   "status": "TODAY",
-  "priority_order": 2
+  "priority_order": 2,
+  "today_date": "2026-08-27"
 }
 ```
 - **Response `201 Created`:** Returns created `DayTask`.
+
+#### `POST /api/tasks/:id/move`
+- **Description:** Atomically moves/schedules a task from Today, Blocked, or Backlog onto a future date (`target_date > today_date`, `target_date != source_date`). Moving a Blocked task preserves its `BLOCKED` status and `blocker_reason`.
+- **Request Body:**
+```json
+{
+  "target_date": "2026-08-29",
+  "source_date": "2026-08-27",
+  "day_task_id": "dt-3",
+  "today_date": "2026-08-27"
+}
+```
+- **Response `200 OK`:** Returns the scheduled `DayTaskWithDetails` on `target_date`.
 
 #### `POST /api/days/:date/tasks/:dayTaskId/demote`
 - **Description:** Demotes a task from today/blocked back to the uncommitted global backlog (removes the `DayTask` commitment).

@@ -1,4 +1,4 @@
-?   	github.com/user/dailycheckin	[no test files]
+?   	github.com/chadzink/dailycheckin	[no test files]
 === RUN   TestStaticRouting_RootIndex
 --- PASS: TestStaticRouting_RootIndex (0.00s)
 === RUN   TestStaticRouting_SPAFallback
@@ -10,7 +10,7 @@
 === RUN   TestStaticRouting_HeadRequests
 --- PASS: TestStaticRouting_HeadRequests (0.00s)
 PASS
-ok  	github.com/user/dailycheckin/cmd/server	(cached)
+ok  	github.com/chadzink/dailycheckin/cmd/server	(cached)
 === RUN   TestHealthCheckHandler
 --- PASS: TestHealthCheckHandler (0.00s)
 === RUN   TestBacklogAndTasksEndpoints
@@ -23,38 +23,78 @@ ok  	github.com/user/dailycheckin/cmd/server	(cached)
 --- PASS: TestRitualEndpoints (0.04s)
 === RUN   TestCalendarHandler_GetMonthSummary
 --- PASS: TestCalendarHandler_GetMonthSummary (0.00s)
+=== RUN   TestPlan015_APIEndpoints
+--- PASS: TestPlan015_APIEndpoints (0.02s)
 PASS
-ok  	github.com/user/dailycheckin/internal/api	(cached)
+ok  	github.com/chadzink/dailycheckin/internal/api	0.500s
 === RUN   TestFirebaseAuthMiddleware_DevUserHeader
 --- PASS: TestFirebaseAuthMiddleware_DevUserHeader (0.00s)
 === RUN   TestFirebaseAuthMiddleware_BearerFallback
 --- PASS: TestFirebaseAuthMiddleware_BearerFallback (0.00s)
 PASS
-ok  	github.com/user/dailycheckin/internal/middleware	(cached)
-?   	github.com/user/dailycheckin/internal/model	[no test files]
+ok  	github.com/chadzink/dailycheckin/internal/middleware	(cached)
+?   	github.com/chadzink/dailycheckin/internal/model	[no test files]
+=== RUN   TestResolveFirestoreConfig_ProductionUsesADC
+--- PASS: TestResolveFirestoreConfig_ProductionUsesADC (0.00s)
+=== RUN   TestResolveFirestoreConfig_LocalDevDefaultsToEmulator
+--- PASS: TestResolveFirestoreConfig_LocalDevDefaultsToEmulator (0.00s)
+=== RUN   TestResolveFirestoreConfig_ExplicitEmulatorHost
+--- PASS: TestResolveFirestoreConfig_ExplicitEmulatorHost (0.00s)
 === RUN   TestScenario1_MasterTaskCRUD
---- PASS: TestScenario1_MasterTaskCRUD (0.03s)
+--- PASS: TestScenario1_MasterTaskCRUD (0.06s)
 === RUN   TestScenario2_SingleCallDaySessionJoinedQuerying
 --- PASS: TestScenario2_SingleCallDaySessionJoinedQuerying (0.02s)
 === RUN   TestScenario3_UserDataIsolation
 --- PASS: TestScenario3_UserDataIsolation (0.01s)
 PASS
-ok  	github.com/user/dailycheckin/internal/repository	(cached)
+ok  	github.com/chadzink/dailycheckin/internal/repository	0.438s
 === RUN   TestCalendarService_GetMonthSummary_Success
---- PASS: TestCalendarService_GetMonthSummary_Success (0.09s)
+--- PASS: TestCalendarService_GetMonthSummary_Success (0.06s)
 === RUN   TestCalendarService_GetMonthSummary_ValidationErrors
 --- PASS: TestCalendarService_GetMonthSummary_ValidationErrors (0.00s)
+=== RUN   TestPlan015_Item1_PastDatePullGuard
+--- PASS: TestPlan015_Item1_PastDatePullGuard (0.02s)
+=== RUN   TestPlan015_Item2_MoveTaskToFutureDate
+--- PASS: TestPlan015_Item2_MoveTaskToFutureDate (0.05s)
+=== RUN   TestPlan015_Item5_BacklogExcludesCommittedTodayAndFutureTasks
+--- PASS: TestPlan015_Item5_BacklogExcludesCommittedTodayAndFutureTasks (0.03s)
+=== RUN   TestPlan015_Item6_SubtasksCRUDValidationAndOneWayCascade
+--- PASS: TestPlan015_Item6_SubtasksCRUDValidationAndOneWayCascade (0.03s)
+=== RUN   TestPlan012_BacklogExcludesCompletedAndTopInsertion
+--- PASS: TestPlan012_BacklogExcludesCompletedAndTopInsertion (0.04s)
+=== RUN   TestPlan012_ReportServiceCompletedTasksDateRange
+--- PASS: TestPlan012_ReportServiceCompletedTasksDateRange (0.04s)
+=== RUN   TestRitualService_ExcludesArchivedTasksFromMorningCheckIn
+--- PASS: TestRitualService_ExcludesArchivedTasksFromMorningCheckIn (0.03s)
+=== RUN   TestRitualService_BlockedTaskRollover_KeepBlockedAndUnblockToToday
+--- PASS: TestRitualService_BlockedTaskRollover_KeepBlockedAndUnblockToToday (0.04s)
+=== RUN   TestRitualService_GetMorningCheckInContext_ExcludesCommittedFutureTasksFromBacklog
+--- PASS: TestRitualService_GetMorningCheckInContext_ExcludesCommittedFutureTasksFromBacklog (0.02s)
+=== RUN   TestRitualService_SubtaskCascadeOnRolloverCompletedAndCheckOut
+--- PASS: TestRitualService_SubtaskCascadeOnRolloverCompletedAndCheckOut (0.04s)
 === RUN   TestRitualService_MultiDayLookback
---- PASS: TestRitualService_MultiDayLookback (0.04s)
+--- PASS: TestRitualService_MultiDayLookback (0.03s)
 === RUN   TestRitualService_ExecuteMorningCheckIn_AndConflict
---- PASS: TestRitualService_ExecuteMorningCheckIn_AndConflict (0.03s)
+--- PASS: TestRitualService_ExecuteMorningCheckIn_AndConflict (0.02s)
 === RUN   TestRitualService_ExecuteCheckOut
---- PASS: TestRitualService_ExecuteCheckOut (0.05s)
+--- PASS: TestRitualService_ExecuteCheckOut (0.03s)
+=== RUN   TestRitualService_YesterdayDoesNotAccumulateAcrossDays
+--- PASS: TestRitualService_YesterdayDoesNotAccumulateAcrossDays (0.06s)
+=== RUN   TestRitualService_YesterdaySkipsDaysWithNoCompletions
+--- PASS: TestRitualService_YesterdaySkipsDaysWithNoCompletions (0.04s)
+=== RUN   TestRitualService_RolloverCompletedUpdatesPriorDayAndAppearsInYesterday
+--- PASS: TestRitualService_RolloverCompletedUpdatesPriorDayAndAppearsInYesterday (0.04s)
+=== RUN   TestYesterday_LegacyStatusYesterdayIgnoredAcrossBoardReportsAndCalendar
+--- PASS: TestYesterday_LegacyStatusYesterdayIgnoredAcrossBoardReportsAndCalendar (0.03s)
+=== RUN   TestYesterday_EmptyWhenNoPriorCompletions
+--- PASS: TestYesterday_EmptyWhenNoPriorCompletions (0.01s)
 === RUN   TestTaskServiceLifecycle
 --- PASS: TestTaskServiceLifecycle (0.01s)
 === RUN   TestDaySessionServiceLifecycle
 --- PASS: TestDaySessionServiceLifecycle (0.02s)
 === RUN   TestDaySessionService_PullDemotePatchReorder
 --- PASS: TestDaySessionService_PullDemotePatchReorder (0.03s)
+=== RUN   TestGetDaySessionExcludesArchivedTasks
+--- PASS: TestGetDaySessionExcludesArchivedTasks (0.01s)
 PASS
-ok  	github.com/user/dailycheckin/internal/service	(cached)
+ok  	github.com/chadzink/dailycheckin/internal/service	1.076s

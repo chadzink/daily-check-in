@@ -23,6 +23,7 @@ export const mockDaySessionFixture: DaySessionWithTasks = {
         completed_at: '2026-08-27T17:30:00Z',
         priority_order: 1,
         blocker_reason: null,
+        subtasks: [],
       },
     ],
     today: [
@@ -36,6 +37,7 @@ export const mockDaySessionFixture: DaySessionWithTasks = {
         completed_at: null,
         priority_order: 1,
         blocker_reason: null,
+        subtasks: [],
       },
       {
         day_task_id: 'dt-today-2',
@@ -47,6 +49,7 @@ export const mockDaySessionFixture: DaySessionWithTasks = {
         completed_at: null,
         priority_order: 2,
         blocker_reason: null,
+        subtasks: [],
       },
     ],
     blocked: [
@@ -60,6 +63,7 @@ export const mockDaySessionFixture: DaySessionWithTasks = {
         completed_at: null,
         priority_order: 1,
         blocker_reason: 'Waiting for GCP IAM role binding permissions approval from DevOps team.',
+        subtasks: [],
       },
     ],
   },
@@ -76,6 +80,7 @@ export const mockBacklogFixture: BacklogResponse = {
       completed_at: null,
       is_archived: false,
       backlog_order: 1,
+      subtasks: [],
       created_at: '2026-08-28T10:00:00Z',
       updated_at: '2026-08-28T10:00:00Z',
     },
@@ -88,6 +93,7 @@ export const mockBacklogFixture: BacklogResponse = {
       completed_at: null,
       is_archived: false,
       backlog_order: 2,
+      subtasks: [],
       created_at: '2026-08-28T10:05:00Z',
       updated_at: '2026-08-28T10:05:00Z',
     },

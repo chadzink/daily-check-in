@@ -217,6 +217,7 @@ func TestDayTaskPlan003Endpoints(t *testing.T) {
 		TaskID:        masterTask.ID,
 		Status:        model.StatusToday,
 		PriorityOrder: 1,
+		TodayDate:     date,
 	}
 	body, _ = json.Marshal(pullPayload)
 	req = httptest.NewRequest(http.MethodPost, "/api/days/"+date+"/pull", bytes.NewReader(body))
@@ -382,4 +383,92 @@ func TestCalendarHandler_GetMonthSummary(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "2026-09", calResp.Month)
 	assert.Equal(t, 30, len(calResp.Days))
+}
+
+func TestPlan015_APIEndpoints(t *testing.T) {
+	e := setupTestEcho(t)
+	userID := "api-plan015-user-" + uuid.New().String()
+	today := "2026-11-26"
+	past := "2026-11-24"
+	future := "2026-11-28"
+
+	// 1. Create a task -> verify subtasks serializes as []
+	body, _ := json.Marshal(model.CreateTaskRequest{Title: "Plan 015 API Task"})
+	req := httptest.NewRequest(http.MethodPost, "/api/tasks", bytes.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set("X-User-ID", userID)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusCreated, rec.Code)
+	assert.Contains(t, rec.Body.String(), `"subtasks":[]`)
+
+	var task model.Task
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &task))
+
+	// 2. Past-date pull -> 400 Bad Request
+	pullBody, _ := json.Marshal(model.PullDayTaskRequest{
+		TaskID:    task.ID,
+		Status:    model.StatusToday,
+		TodayDate: today,
+	})
+	req = httptest.NewRequest(http.MethodPost, "/api/days/"+past+"/pull", bytes.NewReader(pullBody))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+	// 3. PATCH /api/tasks/:id with invalid blank subtask -> 400 Bad Request
+	badSubs := []model.Subtask{{Title: "  "}}
+	patchBadBody, _ := json.Marshal(model.UpdateTaskRequest{Subtasks: &badSubs})
+	req = httptest.NewRequest(http.MethodPatch, "/api/tasks/"+task.ID, bytes.NewReader(patchBadBody))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+	// 4. PATCH /api/tasks/:id with valid subtasks -> 200 OK
+	goodSubs := []model.Subtask{{Title: "API Subtask 1", IsCompleted: false}}
+	patchGoodBody, _ := json.Marshal(model.UpdateTaskRequest{Subtasks: &goodSubs})
+	req = httptest.NewRequest(http.MethodPatch, "/api/tasks/"+task.ID, bytes.NewReader(patchGoodBody))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var updatedTask model.Task
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &updatedTask))
+	require.Len(t, updatedTask.Subtasks, 1)
+
+	// 5. POST /api/tasks/:id/move to today -> 400 Bad Request
+	badMoveBody, _ := json.Marshal(model.MoveTaskToDateRequest{TargetDate: today, TodayDate: today})
+	req = httptest.NewRequest(http.MethodPost, "/api/tasks/"+task.ID+"/move", bytes.NewReader(badMoveBody))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+	// 6. POST /api/tasks/:id/move to future -> 200 OK
+	moveBody, _ := json.Marshal(model.MoveTaskToDateRequest{TargetDate: future, TodayDate: today})
+	req = httptest.NewRequest(http.MethodPost, "/api/tasks/"+task.ID+"/move", bytes.NewReader(moveBody))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var movedDT model.DayTaskWithDetails
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &movedDT))
+	assert.Equal(t, task.ID, movedDT.TaskID)
+	assert.Equal(t, model.StatusToday, movedDT.Status)
+	require.Len(t, movedDT.Subtasks, 1)
+
+	// 7. GET /api/backlog?today=2026-11-26 -> excludes moved future task and serializes tasks as []
+	req = httptest.NewRequest(http.MethodGet, "/api/backlog?today="+today, nil)
+	req.Header.Set("X-User-ID", userID)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), `"tasks":[]`)
 }

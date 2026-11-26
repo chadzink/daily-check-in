@@ -18,6 +18,7 @@ type DaySessionRepository interface {
 	Update(ctx context.Context, session *model.DaySession) error
 	ListByDateRange(ctx context.Context, userID, startDate, endDate string) ([]*model.DaySession, error)
 	ListBeforeDate(ctx context.Context, userID, date string, limit int) ([]*model.DaySession, error)
+	ListFromDate(ctx context.Context, userID, startDate string) ([]*model.DaySession, error)
 }
 
 type firestoreDaySessionRepository struct {
@@ -156,6 +157,32 @@ func (r *firestoreDaySessionRepository) ListBeforeDate(ctx context.Context, user
 	snaps, err := iter.GetAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list day sessions before date: %w", err)
+	}
+
+	sessions := make([]*model.DaySession, 0, len(snaps))
+	for _, snap := range snaps {
+		var session model.DaySession
+		if err := snap.DataTo(&session); err != nil {
+			return nil, fmt.Errorf("failed to decode day session: %w", err)
+		}
+		sessions = append(sessions, &session)
+	}
+	return sessions, nil
+}
+
+func (r *firestoreDaySessionRepository) ListFromDate(ctx context.Context, userID, startDate string) ([]*model.DaySession, error) {
+	if userID == "" || startDate == "" {
+		return nil, fmt.Errorf("%w: user_id and start_date are required", model.ErrInvalidInput)
+	}
+
+	iter := r.sessionsColl(userID).
+		Where("date", ">=", startDate).
+		OrderBy("date", firestore.Asc).
+		Documents(ctx)
+
+	snaps, err := iter.GetAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list day sessions from date: %w", err)
 	}
 
 	sessions := make([]*model.DaySession, 0, len(snaps))

@@ -28,6 +28,7 @@ export const YesterdayRow: React.FC<YesterdayRowProps> = ({
     isCompleted: true,
     completedAt: t.completed_at,
     priorityOrder: t.priority_order,
+    subtasks: t.subtasks || [],
   }));
 
   return (

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Pencil, PlusCircle, X } from 'lucide-react';
+import { Calendar, Pencil, PlusCircle, X } from 'lucide-react';
+import { addDays, format, parseISO } from 'date-fns';
+import { DayStatus } from '../../types/domain';
 
 interface EditTaskModalProps {
   isOpen: boolean;
@@ -7,7 +9,10 @@ interface EditTaskModalProps {
   targetLabel?: string;
   initialTitle: string;
   initialDescription?: string;
-  onConfirm: (title: string, description: string) => void;
+  taskStatus?: DayStatus | 'BACKLOG';
+  currentDate?: string;
+  todayDate?: string;
+  onConfirm: (title: string, description: string, targetDate?: string) => void;
   onCancel: () => void;
   isSaving?: boolean;
 }
@@ -18,18 +23,23 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   targetLabel,
   initialTitle,
   initialDescription = '',
+  taskStatus,
+  currentDate,
+  todayDate,
   onConfirm,
   onCancel,
   isSaving = false,
 }) => {
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
+  const [moveTargetDate, setMoveTargetDate] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setTitle(initialTitle);
       setDescription(initialDescription || '');
+      setMoveTargetDate('');
       setTimeout(() => {
         titleInputRef.current?.focus();
       }, 50);
@@ -49,11 +59,25 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   if (!isOpen) return null;
 
   const trimmedTitle = title.trim();
+  const resolvedToday = todayDate || format(new Date(), 'yyyy-MM-dd');
+  const minFutureDate = format(addDays(parseISO(resolvedToday), 1), 'yyyy-MM-dd');
+  const canMoveToFutureDate =
+    mode === 'edit' &&
+    (taskStatus === 'TODAY' || taskStatus === 'BLOCKED' || taskStatus === 'BACKLOG');
+
+  let moveDateError = '';
+  if (canMoveToFutureDate && moveTargetDate) {
+    if (moveTargetDate <= resolvedToday) {
+      moveDateError = 'Please select a future date after today.';
+    } else if (taskStatus !== 'BACKLOG' && currentDate && moveTargetDate === currentDate) {
+      moveDateError = 'Task is already scheduled on this date.';
+    }
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!trimmedTitle || isSaving) return;
-    onConfirm(trimmedTitle, description.trim());
+    if (!trimmedTitle || isSaving || !!moveDateError) return;
+    onConfirm(trimmedTitle, description.trim(), canMoveToFutureDate && moveTargetDate ? moveTargetDate : undefined);
   };
 
   return (
@@ -125,6 +149,59 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
             />
           </div>
 
+          {canMoveToFutureDate && (
+            <div className="pt-2 border-t border-slate-800/80">
+              <label
+                htmlFor="edit-task-move-date"
+                className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center space-x-1.5"
+              >
+                <Calendar className="h-3.5 w-3.5 text-sky-400" />
+                <span>Move to Future Date</span>
+                <span className="text-[10px] font-normal text-slate-500">(Optional)</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="edit-task-move-date"
+                  data-testid="edit-task-move-date"
+                  type="date"
+                  min={minFutureDate}
+                  value={moveTargetDate}
+                  onChange={(e) => setMoveTargetDate(e.target.value)}
+                  className="flex-1 bg-slate-950/80 text-slate-200 text-xs sm:text-sm rounded-xl px-3 py-2 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/80 transition-all shadow-inner"
+                />
+                {moveTargetDate && (
+                  <button
+                    type="button"
+                    data-testid="edit-task-move-date-clear"
+                    onClick={() => setMoveTargetDate('')}
+                    className="p-2 rounded-lg text-slate-400 hover:text-slate-200 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 transition-colors"
+                    title="Clear target date"
+                    aria-label="Clear target date"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              {moveDateError ? (
+                <p
+                  role="alert"
+                  data-testid="edit-task-move-date-error"
+                  className="mt-1.5 text-[11px] font-medium text-rose-400"
+                >
+                  {moveDateError}
+                </p>
+              ) : taskStatus === 'BLOCKED' ? (
+                <p className="mt-1.5 text-[11px] text-amber-300/90">
+                  Blocked tasks keep their Blocked status and blocker reason when moved.
+                </p>
+              ) : (
+                <p className="mt-1.5 text-[11px] text-slate-400">
+                  Schedules this task onto the selected future date&apos;s Today list.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="flex items-center justify-end space-x-3 pt-2">
             <button
               type="button"
@@ -135,15 +212,19 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={!trimmedTitle || isSaving}
+              disabled={!trimmedTitle || isSaving || !!moveDateError}
               className="px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:pointer-events-none rounded-lg shadow-lg shadow-sky-600/20 transition-all"
             >
               {isSaving
                 ? mode === 'create'
                   ? 'Adding...'
+                  : canMoveToFutureDate && moveTargetDate
+                  ? 'Moving...'
                   : 'Saving...'
                 : mode === 'create'
                 ? 'Add Task'
+                : canMoveToFutureDate && moveTargetDate
+                ? 'Save & Move'
                 : 'Save Changes'}
             </button>
           </div>

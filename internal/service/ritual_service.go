@@ -102,10 +102,9 @@ func (s *ritualService) GetMorningCheckInContext(ctx context.Context, userID, da
 			}
 
 			for _, dt := range incompleteTasks {
-				var title, description string
-				if masterTask, ok := tasksMap[dt.TaskID]; ok {
-					title = masterTask.Title
-					description = masterTask.Description
+				masterTask, ok := tasksMap[dt.TaskID]
+				if !ok || masterTask == nil || masterTask.IsArchived {
+					continue
 				}
 
 				var blockerPtr *string
@@ -117,24 +116,35 @@ func (s *ritualService) GetMorningCheckInContext(ctx context.Context, userID, da
 				item := model.DayTaskWithDetails{
 					DayTaskID:     dt.ID,
 					TaskID:        dt.TaskID,
-					Title:         title,
-					Description:   description,
+					Title:         masterTask.Title,
+					Description:   masterTask.Description,
 					Status:        dt.Status,
 					IsCompleted:   dt.IsCompleted,
 					CompletedAt:   dt.CompletedAt,
 					PriorityOrder: dt.PriorityOrder,
 					BlockerReason: blockerPtr,
+					Subtasks:      normalizeSubtasks(masterTask.Subtasks),
 				}
 				rolloverCandidates = append(rolloverCandidates, item)
 			}
 		}
 	}
 
-	// 6. Fetch unassigned active tasks from Global Backlog
+	// 6. Fetch unassigned active tasks from Global Backlog, excluding rollover candidates
+	// and tasks already committed (unfinished, non-YESTERDAY) on target date or any future date.
+	rolloverTaskIDs := make(map[string]bool, len(rolloverCandidates))
+	for _, rc := range rolloverCandidates {
+		if rc.TaskID != "" {
+			rolloverTaskIDs[rc.TaskID] = true
+		}
+	}
+	committedIDs, _ := collectCommittedTaskIDsFromDate(ctx, s.daySessionRepo, s.dayTaskRepo, userID, date)
+
 	allBacklog, err := s.taskRepo.ListBacklog(ctx, userID)
 	if err == nil {
 		for _, t := range allBacklog {
-			if !t.IsCompleted && !t.IsArchived {
+			if !t.IsCompleted && !t.IsArchived && !rolloverTaskIDs[t.ID] && !committedIDs[t.ID] {
+				t.Subtasks = normalizeSubtasks(t.Subtasks)
 				backlogTasks = append(backlogTasks, t)
 			}
 		}
@@ -197,25 +207,47 @@ func (s *ritualService) ExecuteMorningCheckIn(ctx context.Context, userID, date 
 		prevDayTasks, _ = s.dayTaskRepo.ListByDate(ctx, userID, prevDate)
 	}
 
+	// Build lookup maps of prior day tasks by TaskID and ID to preserve BlockerReason
+	prevByTaskID := make(map[string]*model.DayTask, len(prevDayTasks))
+	prevByID := make(map[string]*model.DayTask, len(prevDayTasks))
+	for _, dt := range prevDayTasks {
+		if dt == nil || dt.Status == model.StatusYesterday {
+			continue
+		}
+		if dt.TaskID != "" {
+			prevByTaskID[dt.TaskID] = dt
+		}
+		if dt.ID != "" {
+			prevByID[dt.ID] = dt
+		}
+	}
+
 	// Map of tasks already committed to today to prevent duplicate records (ignoring legacy StatusYesterday)
 	existingTodayTasks, _ := s.dayTaskRepo.ListByDate(ctx, userID, date)
 	existingTaskIDs := make(map[string]bool)
+	existingTodayByTaskID := make(map[string]*model.DayTask)
+	blockedOrder := 0
 	for _, dt := range existingTodayTasks {
 		if dt.Status == model.StatusYesterday {
 			continue
 		}
 		existingTaskIDs[dt.TaskID] = true
+		existingTodayByTaskID[dt.TaskID] = dt
+		if dt.Status == model.StatusBlocked {
+			blockedOrder++
+		}
 	}
 
 	// 4. Process Rollover Decisions
 	for _, decision := range req.RolloverDecisions {
 		switch decision.Action {
 		case model.RolloverCompleted:
-			// Marked complete late: update master task and mark the prior day's DayTask completed
+			// Marked complete late: update master task (with one-way subtask cascade) and mark the prior day's DayTask completed
 			// (dynamic Yesterday resolution will surface it without persisting a StatusYesterday copy)
 			if masterTask, err := s.taskRepo.GetByID(ctx, userID, decision.TaskID); err == nil && masterTask != nil {
 				masterTask.IsCompleted = true
 				masterTask.CompletedAt = &now
+				completeAllSubtasks(masterTask)
 				_ = s.taskRepo.Update(ctx, masterTask)
 			}
 			if prevDate != "" {
@@ -232,10 +264,43 @@ func (s *ritualService) ExecuteMorningCheckIn(ctx context.Context, userID, date 
 					}
 				}
 			}
+		case model.RolloverKeepBlocked:
+			if decision.TaskID == "" {
+				continue
+			}
+			blockerReason := decision.BlockerReason
+			if blockerReason == "" {
+				if prevDT, ok := prevByID[decision.DayTaskID]; ok && prevDT != nil && prevDT.BlockerReason != "" {
+					blockerReason = prevDT.BlockerReason
+				} else if prevDT, ok := prevByTaskID[decision.TaskID]; ok && prevDT != nil {
+					blockerReason = prevDT.BlockerReason
+				}
+			}
+			if existingDT, exists := existingTodayByTaskID[decision.TaskID]; exists && existingDT != nil {
+				existingDT.Status = model.StatusBlocked
+				existingDT.BlockerReason = blockerReason
+				_ = s.dayTaskRepo.Update(ctx, userID, date, existingDT)
+			} else {
+				blockedOrder++
+				dayTask := &model.DayTask{
+					ID:            uuid.New().String(),
+					DaySessionID:  date,
+					TaskID:        decision.TaskID,
+					Status:        model.StatusBlocked,
+					IsCompleted:   false,
+					PriorityOrder: blockedOrder,
+					BlockerReason: blockerReason,
+					CreatedAt:     now,
+					UpdatedAt:     now,
+				}
+				_ = s.dayTaskRepo.Create(ctx, userID, date, dayTask)
+				existingTaskIDs[decision.TaskID] = true
+				existingTodayByTaskID[decision.TaskID] = dayTask
+			}
 		case model.RolloverDemote:
 			// Demoted: do not schedule for today (master task remains uncommitted in backlog)
 		case model.RolloverToToday:
-			// Added to today commitments if in TodayTaskIDs below
+			// Added to today commitments if in TodayTaskIDs below (with BlockerReason cleared)
 		}
 	}
 
@@ -244,16 +309,12 @@ func (s *ritualService) ExecuteMorningCheckIn(ctx context.Context, userID, date 
 		if taskID == "" {
 			continue
 		}
-		if existingTaskIDs[taskID] {
-			// Find existing and ensure Status is TODAY with priority order
-			for _, dt := range existingTodayTasks {
-				if dt.TaskID == taskID {
-					dt.Status = model.StatusToday
-					dt.PriorityOrder = i + 1
-					_ = s.dayTaskRepo.Update(ctx, userID, date, dt)
-					break
-				}
-			}
+		if existingDT, exists := existingTodayByTaskID[taskID]; exists && existingDT != nil {
+			// Ensure Status is TODAY, clear any BlockerReason (unblocked), and apply priority order
+			existingDT.Status = model.StatusToday
+			existingDT.BlockerReason = ""
+			existingDT.PriorityOrder = i + 1
+			_ = s.dayTaskRepo.Update(ctx, userID, date, existingDT)
 		} else {
 			dayTask := &model.DayTask{
 				ID:            uuid.New().String(),
@@ -262,32 +323,41 @@ func (s *ritualService) ExecuteMorningCheckIn(ctx context.Context, userID, date 
 				Status:        model.StatusToday,
 				IsCompleted:   false,
 				PriorityOrder: i + 1,
+				BlockerReason: "",
 				CreatedAt:     now,
 				UpdatedAt:     now,
 			}
 			_ = s.dayTaskRepo.Create(ctx, userID, date, dayTask)
 			existingTaskIDs[taskID] = true
+			existingTodayByTaskID[taskID] = dayTask
 		}
 	}
 
-	// 6. Commit Blocked tasks
-	for i, taskID := range req.BlockedTaskIDs {
+	// 6. Commit Blocked tasks (preserving prior day BlockerReason if present)
+	for _, taskID := range req.BlockedTaskIDs {
 		if taskID == "" {
 			continue
 		}
 		if !existingTaskIDs[taskID] {
+			blockerReason := ""
+			if prevDT, ok := prevByTaskID[taskID]; ok && prevDT != nil {
+				blockerReason = prevDT.BlockerReason
+			}
+			blockedOrder++
 			dayTask := &model.DayTask{
 				ID:            uuid.New().String(),
 				DaySessionID:  date,
 				TaskID:        taskID,
 				Status:        model.StatusBlocked,
 				IsCompleted:   false,
-				PriorityOrder: i + 1,
+				PriorityOrder: blockedOrder,
+				BlockerReason: blockerReason,
 				CreatedAt:     now,
 				UpdatedAt:     now,
 			}
 			_ = s.dayTaskRepo.Create(ctx, userID, date, dayTask)
 			existingTaskIDs[taskID] = true
+			existingTodayByTaskID[taskID] = dayTask
 		}
 	}
 
@@ -364,10 +434,11 @@ func (s *ritualService) ExecuteCheckOut(ctx context.Context, userID, date string
 				dt.CompletedAt = &now
 				_ = s.dayTaskRepo.Update(ctx, userID, date, dt)
 
-				// Synchronize master task
+				// Synchronize master task (with one-way subtask completion cascade)
 				if masterTask, err := s.taskRepo.GetByID(ctx, userID, dt.TaskID); err == nil && masterTask != nil {
 					masterTask.IsCompleted = true
 					masterTask.CompletedAt = &now
+					completeAllSubtasks(masterTask)
 					_ = s.taskRepo.Update(ctx, masterTask)
 				}
 				break

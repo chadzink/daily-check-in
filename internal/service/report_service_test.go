@@ -25,7 +25,7 @@ func TestPlan012_BacklogExcludesCompletedAndTopInsertion(t *testing.T) {
 	second, err := taskSvc.CreateTask(ctx, userID, model.CreateTaskRequest{Title: "Second Backlog"})
 	require.NoError(t, err)
 
-	backlog, err := taskSvc.ListBacklog(ctx, userID)
+	backlog, err := taskSvc.ListBacklog(ctx, userID, date)
 	require.NoError(t, err)
 	require.Len(t, backlog.Tasks, 2)
 	assert.Equal(t, second.ID, backlog.Tasks[0].ID)
@@ -59,7 +59,7 @@ func TestPlan012_BacklogExcludesCompletedAndTopInsertion(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	backlogAfterComplete, err := taskSvc.ListBacklog(ctx, userID)
+	backlogAfterComplete, err := taskSvc.ListBacklog(ctx, userID, date)
 	require.NoError(t, err)
 	for _, bt := range backlogAfterComplete.Tasks {
 		assert.NotEqual(t, today2.ID, bt.ID, "completed task should not appear in backlog")
